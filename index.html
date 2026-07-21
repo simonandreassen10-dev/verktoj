@@ -2,7 +2,14 @@
 <html lang="da">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#33415C">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Værktøjer">
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./icon-192.png">
 <title>Værktøjer</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2222%22 fill=%22%2333415C%22/><path d=%22M20 65 L40 45 L55 58 L80 30%22 stroke=%22%2354C98B%22 stroke-width=%228%22 fill=%22none%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22/></svg>">
 <style>
@@ -268,10 +275,38 @@
   .ak-fin-chip .val { color: var(--text); font-weight: 700; font-size: 14.5px; }
   .ak-fin-chip .val.pos { color: var(--green); }
   .ak-fin-chip .val.neg { color: var(--red); }
-  .ak-entry-left { display: flex; align-items: center; gap: 9px; min-width: 0; }
+  .ak-entry-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
   .ak-entry-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-  .ak-entry-name { font-size: 14px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 6px; }
+  .ak-entry-identity { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .ak-entry-name { font-size: 14px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+  .ak-entry-badges { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
   .ak-entry-meta { font-size: 11.5px; color: var(--text-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ak-company-logo-wrap {
+    width: 34px; height: 34px; border-radius: 9px; flex-shrink: 0; overflow: hidden;
+    display: flex; align-items: center; justify-content: center; background: var(--card); border: 1px solid var(--border);
+  }
+  .ak-company-logo-wrap.pos { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--green) 32%, transparent); }
+  .ak-company-logo-wrap.neg { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--red) 32%, transparent); }
+  .ak-company-logo { width: 100%; height: 100%; object-fit: contain; background: #fff; padding: 3px; }
+  .ak-company-logo-fallback {
+    width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 800; color: var(--navy); background: var(--soft-navy); text-transform: uppercase;
+  }
+  .ak-ticker-badge, .ak-broker-badge {
+    display: inline-block; font-size: 9.5px; font-family: 'Inconsolata', monospace; border-radius: 5px;
+    padding: 1px 5px; font-weight: 700; line-height: 1.5;
+  }
+  .ak-ticker-badge { background: var(--entry-bg); border: 1px solid var(--border); color: var(--text-muted); }
+  .ak-broker-badge { background: var(--soft-green); color: var(--green); }
+  .ak-ticker-status { min-height: 17px; margin-top: 4px; font-size: 11px; color: var(--text-faint); line-height: 1.4; }
+  .ak-ticker-status.loading { color: var(--navy); }
+  .ak-ticker-status.ok { color: var(--green); }
+  .ak-ticker-status.err { color: var(--red); }
+  .ak-filter-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+  @media (max-width: 760px) { .ak-filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 440px) { .ak-filter-grid { grid-template-columns: 1fr; } }
+  .ak-install-status { display: inline-flex; align-items: center; gap: 6px; font-size: 10.5px; color: var(--green); font-weight: 700; }
+  .ak-carry-note strong { color: var(--text); }
   .ak-fx-badge { display: inline-block; font-size: 10px; font-family: 'Inconsolata', monospace; background: var(--soft-navy); color: var(--navy); border-radius: 5px; padding: 1px 5px; font-weight: 700; }
   .ak-entry-top-right { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
   .ak-entry-pct { font-family: 'Inconsolata', monospace; font-size: 15px; font-weight: 700; padding-right: 2px; }
@@ -480,14 +515,23 @@
       const snap = await getDoc(stateDocRef());
       if(snap.exists()){
         const d = snap.data();
-        state = { sales: d.sales || [], andenPerYear: d.andenPerYear || {}, gift: !!d.gift, extraYears: d.extraYears || [], customCurrencies: d.customCurrencies || [], afkast: d.afkast || null };
+        state = {
+          sales: d.sales || [],
+          andenPerYear: d.andenPerYear || {},
+          gift: !!d.gift,
+          extraYears: d.extraYears || [],
+          customCurrencies: d.customCurrencies || [],
+          customBrokers: d.customBrokers || [],
+          afkast: d.afkast || null,
+          gammeltArkImporteret: !!d.gammeltArkImporteret
+        };
       } else {
-        state = { sales: [], andenPerYear: {}, gift: false, extraYears: [], customCurrencies: [], afkast: null };
+        state = { sales: [], andenPerYear: {}, gift: false, extraYears: [], customCurrencies: [], customBrokers: [], afkast: null, gammeltArkImporteret: false };
         await setDoc(stateDocRef(), state);
       }
     } catch(e) {
       console.error('Kunne ikke hente data', e);
-      state = { sales: [], andenPerYear: {}, gift: false, extraYears: [], customCurrencies: [], afkast: null };
+      state = { sales: [], andenPerYear: {}, gift: false, extraYears: [], customCurrencies: [], customBrokers: [], afkast: null, gammeltArkImporteret: false };
     }
     indlaeserData = false;
     render();
@@ -512,6 +556,24 @@
   let draftSalgMode = 'dkk';
   let pendingDelete = null;
   let pendingDeleteTimer = null;
+  let draftLogoUrl = '';
+  let tickerLookupTimer = null;
+  let tickerLookupSequence = 0;
+  let deferredInstallPrompt = null;
+
+  const DEFAULT_BROKERS = ['Nordnet', 'Endavu', 'Saxo Bank', 'Danske Bank', 'Jyske Bank', 'Nordea', 'Ikke angivet'];
+
+  window.addEventListener('beforeinstallprompt', (event) => {
+    event.preventDefault();
+    deferredInstallPrompt = event;
+    const settingsOverlay = document.getElementById('settingsOverlay');
+    if(settingsOverlay && settingsOverlay.classList.contains('open')) renderSettingsBody();
+  });
+  window.addEventListener('appinstalled', () => {
+    deferredInstallPrompt = null;
+    const settingsOverlay = document.getElementById('settingsOverlay');
+    if(settingsOverlay && settingsOverlay.classList.contains('open')) renderSettingsBody();
+  });
 
   const fmtKr = n => (n < 0 ? '−' : '') + Math.abs(n).toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' kr.';
   const fmtKrHel = n => (n < 0 ? '−' : '') + Math.round(Math.abs(n)).toLocaleString('da-DK') + ' kr.';
@@ -578,9 +640,16 @@
   function computeAll(excludeId){
     const threshold = state.gift ? 158800 : 79400;
     const salesPool = excludeId ? state.sales.filter(s => s.id !== excludeId) : state.sales;
-    const years = Array.from(new Set(salesPool.map(s => s.aar))).sort((a,b) => a - b);
-    Object.keys(state.andenPerYear).forEach(y => { if(!years.includes(parseInt(y))) years.push(parseInt(y)); });
-    years.sort((a,b) => a - b);
+    const currentYear = new Date().getFullYear();
+    const yearSet = new Set(salesPool.map(s => s.aar));
+    Object.keys(state.andenPerYear).forEach(y => yearSet.add(parseInt(y)));
+    (state.extraYears || []).forEach(y => yearSet.add(y));
+    yearSet.add(currentYear); yearSet.add(currentYear + 1);
+    const allYears = Array.from(yearSet);
+    const rangeStart = Math.min(currentYear - 3, ...allYears);
+    const rangeEnd = Math.max(currentYear + 10, ...allYears);
+    const years = [];
+    for(let y = rangeStart; y <= rangeEnd; y++) years.push(y);
 
     const perYear = {};
     let carry = 0;
@@ -665,6 +734,40 @@
 
   let settingsView = 'main'; // 'main' | 'info'
 
+  function koererSomInstalleretApp(){
+    return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  }
+
+  function erIOS(){
+    return /iphone|ipad|ipod/i.test(navigator.userAgent);
+  }
+
+  function installStatusText(){
+    if(koererSomInstalleretApp()) return 'Appen er allerede installeret på denne enhed.';
+    if(deferredInstallPrompt) return 'Klar til installation — åbnes som en rigtig app uden browserlinje.';
+    if(erIOS()) return 'På iPhone/iPad: Del → Føj til hjemmeskærm.';
+    return 'Kræver at siden er lagt online via HTTPS. Browserens installationsmulighed vises derefter her.';
+  }
+
+  async function haandterAppInstallation(){
+    if(koererSomInstalleretApp()){
+      alert('Værktøjer er allerede installeret som app på denne enhed.');
+      return;
+    }
+    if(deferredInstallPrompt){
+      deferredInstallPrompt.prompt();
+      await deferredInstallPrompt.userChoice;
+      deferredInstallPrompt = null;
+      renderSettingsBody();
+      return;
+    }
+    if(erIOS()){
+      alert('Åbn siden i Safari, tryk på Del-ikonet og vælg “Føj til hjemmeskærm”.');
+    } else {
+      alert('Læg alle app-filerne på samme HTTPS-hjemmeside. Åbn derefter siden i Chrome eller Edge og vælg “Installér app” i browsermenuen — eller åbn Indstillinger her igen.');
+    }
+  }
+
   function renderSettingsModal(){
     return `
       <div class="ak-modal-overlay" id="settingsOverlay">
@@ -702,7 +805,15 @@
       `;
       bodyEl.innerHTML = `
         <div style="padding:22px 26px;">
-          <div class="ak-settings-row">
+          <button class="ak-settings-row ak-settings-row-link" id="installAppBtn">
+            <div class="ak-settings-row-text">
+              <div class="ak-settings-row-title">Installér som app ${koererSomInstalleretApp() ? '<span class="ak-install-status">✓ Installeret</span>' : ''}</div>
+              <div class="ak-settings-row-sub">${installStatusText()}</div>
+            </div>
+            <span class="ak-settings-row-chevron">›</span>
+          </button>
+
+          <div class="ak-settings-row" style="margin-top:10px;">
             <div class="ak-settings-row-text">
               <div class="ak-settings-row-title">Gift/samlevende</div>
               <div class="ak-settings-row-sub">Dobbelt bundfradrag i progressionsgrænsen (158.800 kr. i stedet for 79.400 kr.)</div>
@@ -736,6 +847,7 @@
           `}
         </div>
       `;
+      document.getElementById('installAppBtn').addEventListener('click', haandterAppInstallation);
       document.getElementById('giftToggle').addEventListener('click', () => {
         state.gift = !state.gift; save();
         const btn = document.getElementById('giftToggle');
@@ -762,7 +874,7 @@
     if(state.gammeltArkImporteret) return;
     const nytSalg = (navn, type, aar, kobsDato, kobsBelob, salgDato, salgBelob, antal) => ({
       id: 'sale_import_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
-      navn, type, aar, valuta: 'DKK',
+      navn, ticker: '', logoUrl: '', maegler: 'Ikke angivet', type, aar, valuta: 'DKK',
       buys: [{ dato: kobsDato, antal, mode: 'dkk', kurs: 0, rate: 1, totalDkk: kobsBelob }],
       salgDato, antalSolgt: antal, salgMode: 'dkk', salgskurs: 0, salgRate: 1,
       salgBelobDkk: salgBelob, salgsomk: 0, satsmode: 'auto'
@@ -824,6 +936,126 @@
 
   function escapeHtml(str){
     return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function normaliserTicker(value){
+    return String(value || '').trim().toUpperCase().replace(/\s+/g, '');
+  }
+
+  function tickerLogoUrl(ticker){
+    const clean = normaliserTicker(ticker);
+    return clean ? `https://images.financialmodelingprep.com/symbol/${encodeURIComponent(clean)}.png` : '';
+  }
+
+  function brokerListe(){
+    const custom = state && Array.isArray(state.customBrokers) ? state.customBrokers : [];
+    return Array.from(new Set(DEFAULT_BROKERS.concat(custom))).filter(Boolean);
+  }
+
+  function brokerOptionsHtml(){
+    return brokerListe().map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('')
+      + '<option value="__tilfoej__">+ Tilføj ny mægler …</option>';
+  }
+
+  function haandterMaeglerValg(){
+    const sel = document.getElementById('maegler');
+    if(!sel || sel.value !== '__tilfoej__') return;
+    const navn = prompt('Skriv navnet på mægleren:');
+    const clean = String(navn || '').trim();
+    if(clean){
+      if(!state.customBrokers) state.customBrokers = [];
+      if(!brokerListe().some(x => x.toLowerCase() === clean.toLowerCase())) state.customBrokers.push(clean);
+      save();
+      sel.innerHTML = brokerOptionsHtml();
+      const actual = brokerListe().find(x => x.toLowerCase() === clean.toLowerCase()) || clean;
+      sel.value = actual;
+    } else {
+      sel.value = 'Nordnet';
+    }
+    updatePreview();
+  }
+
+  function companyLogoHtml(s, isGain){
+    const name = (s.navn || s.ticker || '?').trim();
+    const initials = name.split(/\s+/).slice(0, 2).map(part => part[0] || '').join('').slice(0, 2) || '?';
+    const logo = s.logoUrl || tickerLogoUrl(s.ticker);
+    const fallbackDisplay = logo ? 'none' : 'flex';
+    return `<span class="ak-company-logo-wrap ${isGain ? 'pos' : 'neg'}">${logo ? `<img class="ak-company-logo" src="${escapeHtml(logo)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">` : ''}<span class="ak-company-logo-fallback" style="display:${fallbackDisplay};">${escapeHtml(initials)}</span></span>`;
+  }
+
+  function saleIdentityHtml(s, isGain, showYear){
+    const displayName = s.navn || s.ticker || '(uden navn)';
+    const tickerBadge = s.ticker ? `<span class="ak-ticker-badge">${escapeHtml(s.ticker)}</span>` : '';
+    const brokerBadge = `<span class="ak-broker-badge">${escapeHtml(s.maegler || 'Ikke angivet')}</span>`;
+    const fxBadge = s.valuta !== 'DKK' ? `<span class="ak-fx-badge">${escapeHtml(s.valuta)}</span>` : '';
+    const yearBadge = showYear ? `<span class="ak-fx-badge">${s.aar}</span>` : '';
+    return `<div class="ak-entry-left">${companyLogoHtml(s, isGain)}<div class="ak-entry-identity"><span class="ak-entry-name">${escapeHtml(displayName)}</span><span class="ak-entry-badges">${tickerBadge}${brokerBadge}${fxBadge}${yearBadge}</span></div></div>`;
+  }
+
+  async function fetchJsonMedFallback(url){
+    const attempts = [
+      url,
+      `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+      `https://corsproxy.io/?url=${encodeURIComponent(url)}`
+    ];
+    for(const attempt of attempts){
+      try {
+        const res = await fetch(attempt, { headers: { 'Accept': 'application/json' } });
+        if(!res.ok) continue;
+        return await res.json();
+      } catch(e){}
+    }
+    return null;
+  }
+
+  async function slaaTickerOp(ticker){
+    const clean = normaliserTicker(ticker);
+    if(!clean) return null;
+    const endpoint = `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(clean)}&quotesCount=8&newsCount=0&enableFuzzyQuery=false`;
+    const data = await fetchJsonMedFallback(endpoint);
+    const quotes = data && Array.isArray(data.quotes) ? data.quotes : [];
+    const exact = quotes.find(q => normaliserTicker(q.symbol) === clean);
+    const candidate = exact || quotes.find(q => ['EQUITY','ETF','MUTUALFUND'].includes(String(q.quoteType || '').toUpperCase())) || quotes[0];
+    if(!candidate || !candidate.symbol) return null;
+    const quoteType = String(candidate.quoteType || '').toUpperCase();
+    return {
+      ticker: normaliserTicker(candidate.symbol),
+      navn: candidate.longname || candidate.shortname || candidate.symbol,
+      logoUrl: tickerLogoUrl(candidate.symbol),
+      type: quoteType === 'ETF' ? 'ETF' : quoteType === 'MUTUALFUND' ? 'Investeringsfond' : 'Aktie'
+    };
+  }
+
+  function setTickerStatus(message, type=''){
+    const el = document.getElementById('tickerStatus');
+    if(!el) return;
+    el.textContent = message || '';
+    el.className = 'ak-ticker-status' + (type ? ' ' + type : '');
+  }
+
+  async function koerTickerOpslag(){
+    const tickerEl = document.getElementById('ticker');
+    const navnEl = document.getElementById('navn');
+    if(!tickerEl || !navnEl) return;
+    const ticker = normaliserTicker(tickerEl.value);
+    tickerEl.value = ticker;
+    if(!ticker){ setTickerStatus(''); draftLogoUrl = ''; return; }
+    const seq = ++tickerLookupSequence;
+    setTickerStatus(`Slår ${ticker} op …`, 'loading');
+    const result = await slaaTickerOp(ticker);
+    if(seq !== tickerLookupSequence) return;
+    if(!result){
+      draftLogoUrl = '';
+      setTickerStatus('Kunne ikke finde tickeren automatisk. Du kan stadig skrive navnet manuelt.', 'err');
+      return;
+    }
+    tickerEl.value = result.ticker;
+    navnEl.value = result.navn;
+    draftLogoUrl = result.logoUrl;
+    const typeEl = document.getElementById('type');
+    if(typeEl && result.type) typeEl.value = result.type;
+    setTickerStatus(`Fundet: ${result.navn}`, 'ok');
+    updatePreview();
   }
 
   function render(){
@@ -1012,8 +1244,10 @@
             <div class="ak-card"><div class="ak-card-label">Gevinst/tab i alt</div><div class="ak-card-value ${isGain ? 'pos' : 'neg'}">${fmtKr(yearData.totalGevinst)}</div></div>
             <div class="ak-card"><div class="ak-card-label">Skat i alt</div><div class="ak-card-value">${fmtKr(yearData.totalSkat)}</div></div>
             <div class="ak-card"><div class="ak-card-label">Efter skat</div><div class="ak-card-value">${fmtKr(yearData.netto)}</div></div>
-            <div class="ak-card"><div class="ak-card-label">Fremført tab</div><div class="ak-card-value ${yearData.carryOut > 0 ? 'neg' : ''}">${fmtKr(yearData.carryOut)}</div></div>
+            <div class="ak-card"><div class="ak-card-label">Tab til modregning</div><div class="ak-card-value ${yearData.carryOut > 0 ? 'neg' : ''}">${fmtKr(yearData.carryOut)}</div></div>
           </div>
+
+          ${yearData.carryOut > 0 ? `<div class="ak-carry-note"><strong>${fmtKr(yearData.carryOut)}</strong> står stadig til modregning. Du kan derfor realisere tilsvarende nettoaktiegevinster, før beregningen begynder at vise skat.</div>` : yearData.carryIn > 0 ? `<div class="ak-carry-note">Dit fremførte tab fra tidligere år er nu fuldt modregnet i ${activeYear}.</div>` : ''}
 
           ${renderLedger(yearData, activeYear, threshold)}
 
@@ -1060,10 +1294,7 @@
               return `
                 <div class="ak-entry">
                   <div class="ak-entry-row-top">
-                    <div class="ak-entry-left">
-                      <span class="ak-entry-dot" style="background:${g ? 'var(--green)' : 'var(--red)'}"></span>
-                      <span class="ak-entry-name">${escapeHtml(s.navn) || '(uden navn)'} ${fxBadge}</span>
-                    </div>
+                    ${saleIdentityHtml(s, g, false)}
                     <div class="ak-entry-top-right">
                       <span class="ak-entry-pct ${g ? 'pos' : 'neg'}">${pctStr}</span>
                       <button class="ak-edit-btn" data-edit="${s.id}" data-tip="Rediger">${iconEdit()}</button>
@@ -1071,7 +1302,7 @@
                     </div>
                   </div>
                   <div class="ak-entry-row-bottom">
-                    <span class="ak-entry-meta">${s.type} · Køb ${fmtKr(s.kobsbelob)} · Salg ${fmtKr(s.salgsbelob)} · sats ${satsLabel}</span>
+                    <span class="ak-entry-meta">${s.type} · ${escapeHtml(s.maegler || 'Ikke angivet')} · Køb ${fmtKr(s.kobsbelob)} · Salg ${fmtKr(s.salgsbelob)} · sats ${satsLabel}</span>
                     <span class="ak-fin-chips">
                       <span class="ak-fin-chip"><span class="lbl">Gevinst</span><span class="val ${g ? 'pos' : 'neg'}">${fmtKr(s.gevinst)}</span></span>
                       <span class="ak-fin-chip"><span class="lbl">Skat</span><span class="val">${fmtKr(s.skat)}</span></span>
@@ -1256,6 +1487,7 @@
   let sogQuery = '';
   let sogYear = 'alle';
   let sogType = 'alle';
+  let sogMaegler = 'alle';
   let sogSort = 'nyeste';
 
   function getAlleSalgBeregnet(){
@@ -1267,16 +1499,20 @@
 
   function filtrerOgSorterSalg(alle){
     let filtered = alle.filter(s => {
-      const matchQuery = sogQuery.trim() === '' || (s.navn || '').toLowerCase().includes(sogQuery.trim().toLowerCase());
+      const q = sogQuery.trim().toLowerCase();
+      const matchQuery = q === '' || (s.navn || '').toLowerCase().includes(q) || (s.ticker || '').toLowerCase().includes(q);
       const matchYear = sogYear === 'alle' || s.aar === parseInt(sogYear);
       const matchType = sogType === 'alle' || s.type === sogType;
-      return matchQuery && matchYear && matchType;
+      const matchMaegler = sogMaegler === 'alle' || (s.maegler || 'Ikke angivet') === sogMaegler;
+      return matchQuery && matchYear && matchType && matchMaegler;
     });
     filtered.sort((a, b) => {
       if(sogSort === 'nyeste') return b.aar - a.aar || (b.salgDato || '').localeCompare(a.salgDato || '');
       if(sogSort === 'aeldste') return a.aar - b.aar || (a.salgDato || '').localeCompare(b.salgDato || '');
       if(sogSort === 'stoerst-gevinst') return b.gevinst - a.gevinst;
       if(sogSort === 'stoerst-tab') return a.gevinst - b.gevinst;
+      if(sogSort === 'maegler-az') return (a.maegler || 'Ikke angivet').localeCompare(b.maegler || 'Ikke angivet', 'da');
+      if(sogSort === 'maegler-za') return (b.maegler || 'Ikke angivet').localeCompare(a.maegler || 'Ikke angivet', 'da');
       return 0;
     });
     return filtered;
@@ -1285,6 +1521,7 @@
   function renderSogContent(){
     const alle = getAlleSalgBeregnet();
     const aarListe = Array.from(new Set(alle.map(s => s.aar))).sort((a,b) => b - a);
+    const maeglerListe = Array.from(new Set(brokerListe().concat(alle.map(s => s.maegler || 'Ikke angivet')))).sort((a,b) => a.localeCompare(b, 'da'));
     const filtered = filtrerOgSorterSalg(alle);
 
     return `
@@ -1298,7 +1535,7 @@
           <div class="ak-field" style="margin-bottom:12px;">
             <input type="text" id="sogInput" placeholder="Søg efter navn / ticker …" value="${escapeHtml(sogQuery)}">
           </div>
-          <div class="afk-grid" style="grid-template-columns: repeat(3, 1fr);">
+          <div class="ak-filter-grid">
             <div class="ak-field">
               <label for="sogYearSelect">År</label>
               <select id="sogYearSelect">
@@ -1316,12 +1553,21 @@
               </select>
             </div>
             <div class="ak-field">
+              <label for="sogMaeglerSelect">Mægler</label>
+              <select id="sogMaeglerSelect">
+                <option value="alle" ${sogMaegler === 'alle' ? 'selected' : ''}>Alle mæglere</option>
+                ${maeglerListe.map(m => `<option value="${escapeHtml(m)}" ${sogMaegler === m ? 'selected' : ''}>${escapeHtml(m)}</option>`).join('')}
+              </select>
+            </div>
+            <div class="ak-field">
               <label for="sogSortSelect">Sortér</label>
               <select id="sogSortSelect">
                 <option value="nyeste" ${sogSort === 'nyeste' ? 'selected' : ''}>Nyeste år først</option>
                 <option value="aeldste" ${sogSort === 'aeldste' ? 'selected' : ''}>Ældste år først</option>
                 <option value="stoerst-gevinst" ${sogSort === 'stoerst-gevinst' ? 'selected' : ''}>Størst gevinst</option>
                 <option value="stoerst-tab" ${sogSort === 'stoerst-tab' ? 'selected' : ''}>Størst tab</option>
+                <option value="maegler-az" ${sogSort === 'maegler-az' ? 'selected' : ''}>Mægler A–Å</option>
+                <option value="maegler-za" ${sogSort === 'maegler-za' ? 'selected' : ''}>Mægler Å–A</option>
               </select>
             </div>
           </div>
@@ -1340,10 +1586,7 @@
               return `
                 <div class="ak-entry">
                   <div class="ak-entry-row-top">
-                    <div class="ak-entry-left">
-                      <span class="ak-entry-dot" style="background:${g ? 'var(--green)' : 'var(--red)'}"></span>
-                      <span class="ak-entry-name">${escapeHtml(s.navn) || '(uden navn)'} ${fxBadge}<span class="ak-fx-badge" style="background:var(--soft-navy);color:var(--navy);">${s.aar}</span></span>
-                    </div>
+                    ${saleIdentityHtml(s, g, true)}
                     <div class="ak-entry-top-right">
                       <span class="ak-entry-pct ${g ? 'pos' : 'neg'}">${pctStr}</span>
                       <button class="ak-edit-btn" data-sog-edit="${s.id}" data-tip="Rediger">${iconEdit()}</button>
@@ -1351,7 +1594,7 @@
                     </div>
                   </div>
                   <div class="ak-entry-row-bottom">
-                    <span class="ak-entry-meta">${s.type} · Køb ${fmtKr(s.kobsbelob)} · Salg ${fmtKr(s.salgsbelob)}</span>
+                    <span class="ak-entry-meta">${s.type} · ${escapeHtml(s.maegler || 'Ikke angivet')} · Køb ${fmtKr(s.kobsbelob)} · Salg ${fmtKr(s.salgsbelob)}</span>
                     <span class="ak-fin-chips">
                       <span class="ak-fin-chip"><span class="lbl">Gevinst</span><span class="val ${g ? 'pos' : 'neg'}">${fmtKr(s.gevinst)}</span></span>
                       <span class="ak-fin-chip highlight"><span class="lbl">Efter skat</span><span class="val">${fmtKr(s.gevinst - s.skat)}</span></span>
@@ -1373,6 +1616,7 @@
     inputEl.addEventListener('input', () => { sogQuery = inputEl.value; renderSogListOnly(); });
     document.getElementById('sogYearSelect').addEventListener('change', (e) => { sogYear = e.target.value; renderBloedt(); });
     document.getElementById('sogTypeSelect').addEventListener('change', (e) => { sogType = e.target.value; renderBloedt(); });
+    document.getElementById('sogMaeglerSelect').addEventListener('change', (e) => { sogMaegler = e.target.value; renderBloedt(); });
     document.getElementById('sogSortSelect').addEventListener('change', (e) => { sogSort = e.target.value; renderBloedt(); });
     wireSogListButtons();
   }
@@ -1398,10 +1642,7 @@
       return `
         <div class="ak-entry">
           <div class="ak-entry-row-top">
-            <div class="ak-entry-left">
-              <span class="ak-entry-dot" style="background:${g ? 'var(--green)' : 'var(--red)'}"></span>
-              <span class="ak-entry-name">${escapeHtml(s.navn) || '(uden navn)'} ${fxBadge}<span class="ak-fx-badge" style="background:var(--soft-navy);color:var(--navy);">${s.aar}</span></span>
-            </div>
+            ${saleIdentityHtml(s, g, true)}
             <div class="ak-entry-top-right">
               <span class="ak-entry-pct ${g ? 'pos' : 'neg'}">${pctStr}</span>
               <button class="ak-edit-btn" data-sog-edit="${s.id}" data-tip="Rediger">${iconEdit()}</button>
@@ -1409,7 +1650,7 @@
             </div>
           </div>
           <div class="ak-entry-row-bottom">
-            <span class="ak-entry-meta">${s.type} · Køb ${fmtKr(s.kobsbelob)} · Salg ${fmtKr(s.salgsbelob)}</span>
+            <span class="ak-entry-meta">${s.type} · ${escapeHtml(s.maegler || 'Ikke angivet')} · Køb ${fmtKr(s.kobsbelob)} · Salg ${fmtKr(s.salgsbelob)}</span>
             <span class="ak-fin-chips">
               <span class="ak-fin-chip"><span class="lbl">Gevinst</span><span class="val ${g ? 'pos' : 'neg'}">${fmtKr(s.gevinst)}</span></span>
               <span class="ak-fin-chip highlight"><span class="lbl">Efter skat</span><span class="val">${fmtKr(s.gevinst - s.skat)}</span></span>
@@ -1452,11 +1693,23 @@
           </div>
           <div class="ak-modal-body">
             <div class="ak-modal-form">
-              <div class="ak-field"><label for="navn">Navn / ticker</label><input type="text" id="navn" placeholder="fx Apple Inc."></div>
-              <div class="ak-field-row ak-field-row-3">
+              <div class="ak-field-row">
+                <div class="ak-field">
+                  <label for="ticker">Tickerkode</label>
+                  <input type="text" id="ticker" placeholder="fx AAPL, NOVO-B.CO eller WEBN.DE" autocomplete="off" autocapitalize="characters" spellcheck="false">
+                  <div class="ak-ticker-status" id="tickerStatus"></div>
+                </div>
+                <div class="ak-field"><label for="navn">Navn på værdipapir</label><input type="text" id="navn" placeholder="Udfyldes automatisk — kan rettes manuelt"></div>
+              </div>
+              <div class="ak-field-row">
                 <div class="ak-field"><label for="type">Type</label>
                   <select id="type"><option>Aktie</option><option>Investeringsfond</option><option>ETF</option></select>
                 </div>
+                <div class="ak-field"><label for="maegler">Mægler</label>
+                  <select id="maegler">${brokerOptionsHtml()}</select>
+                </div>
+              </div>
+              <div class="ak-field-row">
                 <div class="ak-field"><label for="aar">Skatteår</label><input type="number" id="aar" value="2026" step="1"></div>
                 <div class="ak-field"><label for="valuta">Valuta</label>
                   <select id="valuta">
@@ -1648,7 +1901,10 @@
     const salgRateEl = document.getElementById('salgRate');
     const salgDkkEl = document.getElementById('salgBelobDkk');
     return {
+      ticker: normaliserTicker(document.getElementById('ticker').value),
       navn: document.getElementById('navn').value.trim(),
+      logoUrl: draftLogoUrl,
+      maegler: document.getElementById('maegler').value === '__tilfoej__' ? 'Ikke angivet' : document.getElementById('maegler').value,
       type: document.getElementById('type').value,
       aar: parseInt(document.getElementById('aar').value) || new Date().getFullYear(),
       valuta,
@@ -1724,7 +1980,21 @@
   function wireModalInputs(){
     document.getElementById('addLotBtn').addEventListener('click', () => { draftLots.push({ dato: '', antal: '', kurs: '', rate: '1', mode: 'dkk', totalDkk: '', komk: '0' }); renderLots(); });
     document.getElementById('valuta').addEventListener('change', haandterValutaValg);
-    ['navn','type','aar','antalSolgt','salgsomk','satsmode'].forEach(id => {
+    document.getElementById('maegler').addEventListener('change', haandterMaeglerValg);
+    const tickerEl = document.getElementById('ticker');
+    tickerEl.addEventListener('input', () => {
+      tickerEl.value = normaliserTicker(tickerEl.value);
+      draftLogoUrl = '';
+      setTickerStatus(tickerEl.value ? 'Venter på opslag …' : '');
+      if(tickerLookupTimer) clearTimeout(tickerLookupTimer);
+      tickerLookupTimer = setTimeout(koerTickerOpslag, 650);
+      updatePreview();
+    });
+    tickerEl.addEventListener('blur', () => {
+      if(tickerLookupTimer) clearTimeout(tickerLookupTimer);
+      koerTickerOpslag();
+    });
+    ['navn','type','aar','maegler','antalSolgt','salgsomk','satsmode'].forEach(id => {
       document.getElementById(id).addEventListener('input', updatePreview);
       document.getElementById(id).addEventListener('change', updatePreview);
     });
@@ -1776,8 +2046,17 @@
 
     if(editingId){
       const s = state.sales.find(x => x.id === editingId);
-      document.getElementById('navn').value = s.navn;
+      document.getElementById('ticker').value = s.ticker || '';
+      document.getElementById('navn').value = s.navn || '';
+      draftLogoUrl = s.logoUrl || tickerLogoUrl(s.ticker);
       document.getElementById('type').value = s.type;
+      const maeglerEl = document.getElementById('maegler');
+      const maeglerNavn = s.maegler || 'Ikke angivet';
+      if(!Array.from(maeglerEl.options).some(o => o.value === maeglerNavn)){
+        const option = document.createElement('option'); option.value = maeglerNavn; option.textContent = maeglerNavn;
+        maeglerEl.insertBefore(option, maeglerEl.lastElementChild);
+      }
+      maeglerEl.value = maeglerNavn;
       document.getElementById('aar').value = s.aar;
       document.getElementById('valuta').value = s.valuta;
       document.getElementById('salgDato').value = s.salgDato || '';
@@ -1787,6 +2066,7 @@
       draftLots = s.buys.map(b => ({ dato: b.dato, antal: b.antal, kurs: b.kurs, rate: String(b.rate), mode: b.mode || 'kurs', totalDkk: b.totalDkk != null ? String(b.totalDkk) : '', komk: b.komk != null ? String(b.komk) : '0' }));
       draftSalgMode = s.salgMode || 'kurs';
       wireModalInputs();
+      if(s.ticker) setTickerStatus(`Ticker: ${s.ticker}${s.navn ? ' · ' + s.navn : ''}`, 'ok');
       if(draftSalgMode === 'dkk'){
         document.getElementById('salgBelobDkk').value = s.salgBelobDkk || '';
       } else {
@@ -1794,8 +2074,11 @@
         document.getElementById('salgRate').value = s.valuta === 'DKK' ? '' : s.salgRate;
       }
     } else {
+      document.getElementById('ticker').value = '';
       document.getElementById('navn').value = '';
+      draftLogoUrl = '';
       document.getElementById('type').value = 'Aktie';
+      document.getElementById('maegler').value = 'Nordnet';
       document.getElementById('aar').value = activeYear || new Date().getFullYear();
       document.getElementById('valuta').value = 'DKK';
       document.getElementById('salgDato').value = '';
@@ -1817,6 +2100,10 @@
     const { totalAntal } = computeGak(draft.buys, draft.valuta);
     const warnEl = document.getElementById('warnNote');
 
+    if(!draft.navn && !draft.ticker){
+      warnEl.textContent = 'Skriv mindst en tickerkode eller et navn på værdipapiret.';
+      warnEl.style.display = 'block'; return;
+    }
     if(draft.buys.length === 0 || draft.antalSolgt <= 0 || !salgBeloebUdfyldt(draft)){
       warnEl.textContent = 'Udfyld mindst ét køb (antal + beløb eller kurs) samt antal solgt og salgsbeløb/-kurs.';
       warnEl.style.display = 'block'; return;
@@ -1826,6 +2113,8 @@
       warnEl.style.display = 'block'; return;
     }
     warnEl.style.display = 'none';
+    if(!draft.navn) draft.navn = draft.ticker;
+    if(draft.ticker && !draft.logoUrl) draft.logoUrl = tickerLogoUrl(draft.ticker);
 
     if(editingId){
       const idx = state.sales.findIndex(s => s.id === editingId);
@@ -1851,6 +2140,12 @@
       return;
     }
   });
+
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./service-worker.js', { scope: './' }).catch(err => console.warn('Service worker kunne ikke registreres', err));
+    });
+  }
 
   onAuthStateChanged(auth, (user) => {
     currentUser = user;
