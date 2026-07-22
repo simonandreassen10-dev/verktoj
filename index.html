@@ -77,13 +77,19 @@
   .dash-shell { display: flex; min-height: 100vh; }
   .dash-sidebar {
     width: 232px; flex-shrink: 0; background: var(--card); border-right: 1px solid var(--border);
-    display: flex; flex-direction: column; padding: 22px 16px; transition: width 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+    display: flex; flex-direction: column; padding: 22px 16px;
+    transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1), padding 0.3s cubic-bezier(0.16, 1, 0.3, 1), background 0.18s ease, border-color 0.18s ease;
+    position: sticky; top: 0; align-self: flex-start; height: 100vh;
   }
   .dash-sidebar.collapsed { width: 68px; padding: 22px 10px; }
-  .dash-sidebar-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px; }
-  .dash-sidebar.collapsed .dash-sidebar-top { flex-direction: column; gap: 10px; }
-  .dash-brand { font-size: 17px; font-weight: 800; letter-spacing: -0.01em; color: var(--text); padding: 0 4px; white-space: nowrap; overflow: hidden; }
-  .dash-sidebar.collapsed .dash-brand { display: none; }
+  .dash-sidebar-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px; min-height: 28px; transition: justify-content 0.2s ease; }
+  .dash-sidebar.collapsed .dash-sidebar-top { justify-content: center; }
+  .dash-brand {
+    font-size: 17px; font-weight: 800; letter-spacing: -0.01em; color: var(--text); padding: 0 4px;
+    white-space: nowrap; overflow: hidden; max-width: 170px; opacity: 1; transform: translateX(0);
+    transition: opacity 0.16s ease, transform 0.22s ease, max-width 0.3s cubic-bezier(0.16, 1, 0.3, 1), padding 0.3s ease;
+  }
+  .dash-sidebar.collapsed .dash-brand { opacity: 0; transform: translateX(-8px); max-width: 0; padding-left: 0; padding-right: 0; pointer-events: none; }
   .dash-collapse-btn {
     background: var(--bg); border: 1px solid var(--border); color: var(--text-muted); width: 26px; height: 26px;
     border-radius: 7px; cursor: pointer; font-size: 14px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
@@ -96,16 +102,26 @@
     color: var(--text-muted); cursor: pointer; transition: background 0.12s ease, color 0.12s ease;
   }
   .dash-sidebar.collapsed .dash-nav-item { justify-content: center; padding: 10px; }
-  .dash-sidebar.collapsed .dash-nav-label { display: none; }
+  .dash-nav-label {
+    display: inline-block; max-width: 170px; opacity: 1; transform: translateX(0); white-space: nowrap; overflow: hidden;
+    transition: opacity 0.16s ease, transform 0.22s ease, max-width 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .dash-sidebar.collapsed .dash-nav-label { opacity: 0; transform: translateX(-7px); max-width: 0; pointer-events: none; }
   .dash-nav-item:hover { background: var(--hover); color: var(--text); }
   .dash-nav-item.active { background: var(--soft-navy); color: var(--navy); }
   .dash-nav-icon { font-size: 15px; }
   .dash-sidebar-bottom { border-top: 1px solid var(--border); padding-top: 14px; margin-top: 14px; display: flex; flex-direction: column; gap: 10px; }
-  .dash-sidebar.collapsed .dash-sidebar-bottom .ak-user-info { display: none; }
+  .dash-sidebar-bottom .ak-user-info {
+    max-width: 190px; opacity: 1; transform: translateX(0); overflow: hidden; white-space: nowrap;
+    transition: opacity 0.16s ease, transform 0.22s ease, max-width 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .dash-sidebar.collapsed .dash-sidebar-bottom .ak-user-info { opacity: 0; transform: translateX(-7px); max-width: 0; pointer-events: none; }
   .dash-sidebar.collapsed .dash-sidebar-actions { flex-direction: column; }
-  .dash-sidebar.collapsed .dash-sidebar-actions .ak-logout-btn { font-size: 0; padding: 8px; }
-  .dash-sidebar.collapsed .dash-sidebar-actions .ak-logout-btn::before { content: '⏻'; font-size: 14px; }
-  .dash-sidebar-actions { display: flex; gap: 8px; }
+  .dash-sidebar-actions { display: flex; gap: 8px; transition: gap 0.2s ease; }
+  .ak-logout-icon { display: none; font-size: 14px; line-height: 1; }
+  .ak-logout-label { display: inline-block; max-width: 70px; opacity: 1; overflow: hidden; white-space: nowrap; transition: opacity 0.16s ease, max-width 0.25s ease; }
+  .dash-sidebar.collapsed .ak-logout-icon { display: inline-block; }
+  .dash-sidebar.collapsed .ak-logout-label { max-width: 0; opacity: 0; }
   .dash-sidebar-actions .ak-settings-btn,
   .dash-sidebar-actions .ak-logout-btn { height: 38px; flex: 1 1 0; width: auto; min-width: 0; padding: 0; display: flex; align-items: center; justify-content: center; box-shadow: none; }
   .dash-content { flex: 1; min-width: 0; padding: 28px 26px 90px; }
@@ -207,6 +223,18 @@
   .ak-settings-row-sub { font-size: 11.5px; color: var(--text-faint); font-weight: 500; }
   .ak-modal-back { background: none; border: none; color: var(--text-muted); font-size: 20px; cursor: pointer; width: 30px; height: 30px; border-radius: 7px; margin-right: 2px; }
   .ak-modal-back:hover { background: var(--hover); color: var(--text); }
+  .ak-broker-row { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border: 1px solid var(--border); border-radius: 9px; margin-bottom: 6px; background: var(--entry-bg); }
+  .ak-broker-row-name { flex: 1; font-size: 13px; font-weight: 600; color: var(--text); }
+  .ak-broker-row-del { background: none; border: none; color: var(--text-faint); cursor: pointer; padding: 4px; border-radius: 6px; display: flex; }
+  .ak-broker-row-del:hover { background: var(--soft-red); color: var(--red); }
+  .ak-broker-empty { font-size: 12.5px; color: var(--text-faint); font-style: italic; padding: 10px 2px; }
+  .ak-broker-add-row { display: flex; gap: 8px; margin-top: 14px; }
+  .ak-broker-add-row input { flex: 1; }
+  .ak-broker-add-btn { font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 700; padding: 0 16px; border-radius: 8px; cursor: pointer; border: none; background: var(--primary-btn); color: var(--primary-btn-text); }
+  .ak-broker-add-btn:hover { background: var(--primary-btn-hover); }
+  .ak-undo-btn-secondary { top: 74px; }
+  @media (max-width: 780px) { .ak-undo-btn-secondary { top: 62px; } }
+
   .ak-toggle-switch {
     position: relative; width: 40px; height: 24px; border-radius: 12px; flex-shrink: 0;
     background: var(--border); border: none; cursor: pointer; padding: 0; transition: background 0.15s ease;
@@ -259,20 +287,27 @@
   }
   .ak-reset-btn:hover { border-color: var(--red); color: var(--red); }
 
-  .ak-entry-list { display: flex; flex-direction: column; gap: 6px; }
-  .ak-entry { display: flex; flex-direction: column; gap: 5px; padding: 11px 12px; border-radius: 9px; background: var(--entry-bg); transition: background 0.12s ease; }
-  .ak-entry:hover { background: var(--hover); }
-  .ak-entry-row-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-  .ak-entry-row-bottom { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
-  .ak-fin-chips { display: flex; gap: 6px; flex-wrap: wrap; }
-  .ak-fin-chip {
-    display: flex; align-items: baseline; gap: 6px; background: var(--card); border: 1px solid var(--border);
-    border-radius: 8px; padding: 6px 12px; font-family: 'Inconsolata', monospace; font-size: 12.5px; white-space: nowrap;
+  .ak-entry-list { display: flex; flex-direction: column; gap: 8px; }
+  .ak-entry {
+    display: flex; flex-direction: column; gap: 7px; padding: 12px; border-radius: 10px;
+    background: var(--entry-bg); border: 1px solid transparent; cursor: pointer;
+    transition: background 0.14s ease, border-color 0.14s ease, transform 0.14s ease, box-shadow 0.14s ease;
   }
-  .ak-fin-chip.highlight { border-color: transparent; background: var(--soft-navy); }
-  .ak-fin-chip.highlight .val { color: var(--navy); }
-  .ak-fin-chip .lbl { color: var(--text-faint); font-size: 11px; }
-  .ak-fin-chip .val { color: var(--text); font-weight: 700; font-size: 14.5px; }
+  .ak-entry:hover, .ak-entry:focus-visible { background: var(--hover); border-color: var(--border); transform: translateY(-1px); box-shadow: 0 8px 18px var(--shadow); outline: none; }
+  .ak-entry-row-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .ak-entry-row-bottom { display: flex; flex-direction: column; align-items: stretch; gap: 8px; }
+  .ak-fin-chips { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; }
+  .ak-fin-chip {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex: 1 1 130px; min-width: 0;
+    background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 7px 12px;
+    font-family: 'Inconsolata', monospace; font-size: 12.5px; white-space: nowrap;
+  }
+  .ak-fin-chip .lbl { color: var(--text-faint); font-size: 11px; font-family: 'Inter', sans-serif; }
+  .ak-fin-chip .val { color: var(--text); font-weight: 700; font-size: 15px; }
+  @media (max-width: 520px) {
+    .ak-fin-chip { flex-basis: 100%; }
+    .ak-entry-row-top { align-items: flex-start; }
+  }
   .ak-fin-chip .val.pos { color: var(--green); }
   .ak-fin-chip .val.neg { color: var(--red); }
   .ak-entry-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
@@ -280,7 +315,7 @@
   .ak-entry-identity { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
   .ak-entry-name { font-size: 14px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
   .ak-entry-badges { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
-  .ak-entry-meta { font-size: 11.5px; color: var(--text-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ak-entry-meta { font-size: 11.5px; color: var(--text-faint); line-height: 1.5; white-space: normal; overflow-wrap: anywhere; }
   .ak-company-logo-wrap {
     width: 34px; height: 34px; border-radius: 9px; flex-shrink: 0; overflow: hidden;
     display: flex; align-items: center; justify-content: center; background: var(--card); border: 1px solid var(--border);
@@ -309,7 +344,9 @@
   .ak-carry-note strong { color: var(--text); }
   .ak-fx-badge { display: inline-block; font-size: 10px; font-family: 'Inconsolata', monospace; background: var(--soft-navy); color: var(--navy); border-radius: 5px; padding: 1px 5px; font-weight: 700; }
   .ak-entry-top-right { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
-  .ak-entry-pct { font-family: 'Inconsolata', monospace; font-size: 15px; font-weight: 700; padding-right: 2px; }
+  .ak-entry-chevron { color: var(--text-faint); font-size: 19px; line-height: 1; margin-left: 2px; opacity: 0.45; transform: translateX(-2px); transition: opacity 0.14s ease, transform 0.14s ease; }
+  .ak-entry:hover .ak-entry-chevron, .ak-entry:focus-visible .ak-entry-chevron { opacity: 1; transform: translateX(0); color: var(--navy); }
+  .ak-entry-pct { font-family: 'Inconsolata', monospace; font-size: 17px; font-weight: 800; padding-right: 2px; }
   .ak-entry-pct.pos { color: var(--green); }
   .ak-entry-pct.neg { color: var(--red); }
   .ak-entry-financials { font-size: 11px; color: var(--text-faint); font-family: 'Inconsolata', monospace; white-space: nowrap; flex-shrink: 0; }
@@ -330,62 +367,62 @@
     position: fixed; inset: 0; z-index: 100;
     background: rgba(20,21,24,0.38);
     backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
-    display: none; align-items: center; justify-content: center; padding: 20px;
+    display: none; align-items: center; justify-content: center; padding: 12px;
   }
   .ak-modal-overlay.open { display: flex; animation: ak-overlay-in 0.16s ease; }
   @keyframes ak-overlay-in { from { opacity: 0; } to { opacity: 1; } }
   .ak-modal {
     background: var(--card); border: 1px solid var(--border); border-radius: 14px;
-    width: 100%; max-width: 960px; max-height: 94vh; overflow: hidden;
+    width: 100%; max-width: 960px; max-height: 96vh; overflow: hidden;
     display: flex; flex-direction: column;
     box-shadow: 0 24px 60px var(--modal-shadow);
   }
   .ak-modal-overlay.open .ak-modal { animation: ak-modal-in 0.22s cubic-bezier(0.16, 1, 0.3, 1); }
   @keyframes ak-modal-in { from { opacity: 0; transform: scale(0.96) translateY(8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
-  .ak-modal-header { display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  .ak-modal-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
   .ak-modal-title { font-size: 15px; font-weight: 700; }
   .ak-modal-close { background: none; border: none; color: var(--text-faint); font-size: 19px; cursor: pointer; width: 30px; height: 30px; border-radius: 7px; }
   .ak-modal-close:hover { background: var(--hover); color: var(--text); }
-  .ak-modal-body { display: grid; grid-template-columns: 1fr 280px; overflow-y: auto; }
+  .ak-modal-body { display: grid; grid-template-columns: 1fr 260px; overflow-y: auto; }
   @media (max-width: 720px) { .ak-modal-body { grid-template-columns: 1fr; } }
-  .ak-modal-form { padding: 14px 20px; border-right: 1px solid var(--border); }
+  .ak-modal-form { padding: 12px 20px; border-right: 1px solid var(--border); }
   @media (max-width: 720px) { .ak-modal-form { border-right: none; border-bottom: 1px solid var(--border); } }
   .ak-modal-preview { padding: 14px 20px; background: var(--entry-bg); }
   .ak-modal-footer { padding: 12px 20px; border-top: 1px solid var(--border); flex-shrink: 0; }
 
-  .ak-section-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-faint); font-weight: 700; margin: 12px 0 8px; padding-top: 10px; border-top: 1px solid var(--border); }
+  .ak-section-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-faint); font-weight: 700; margin: 8px 0 6px; padding-top: 8px; border-top: 1px solid var(--border); }
   .ak-section-label:first-of-type { border-top: none; padding-top: 0; margin-top: 0; }
 
-  .ak-field { margin-bottom: 8px; }
-  .ak-field label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 4px; font-weight: 600; }
+  .ak-field { margin-bottom: 6px; }
+  .ak-field label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 3px; font-weight: 600; }
   .ak-field-row { display: flex; gap: 10px; }
   .ak-field-row .ak-field { flex: 1; min-width: 0; }
   .ak-field-row-3 .ak-field { flex: 1; }
 
   select, input[type="number"], input[type="text"], input[type="date"] {
-    width: 100%; font-family: 'Inter', sans-serif; font-size: 13.5px; padding: 7px 10px; border-radius: 8px;
+    width: 100%; font-family: 'Inter', sans-serif; font-size: 13.5px; padding: 6px 10px; border-radius: 8px;
     border: 1px solid var(--border); background: var(--bg); color: var(--text); outline: none;
     transition: border-color 0.12s ease, box-shadow 0.12s ease;
   }
   input[type="number"] { font-family: 'Inconsolata', monospace; font-variant-numeric: tabular-nums; }
   select:focus, input:focus { border-color: var(--primary-btn); box-shadow: 0 0 0 3px var(--focus-ring); }
 
-  .ak-lot { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 8px 8px 1px; margin-bottom: 6px; position: relative; }
+  .ak-lot { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 7px 7px 1px; margin-bottom: 5px; position: relative; }
   .ak-lot-remove { position: absolute; top: 6px; right: 6px; background: none; border: none; color: var(--text-faint); cursor: pointer; font-size: 14px; width: 22px; height: 22px; border-radius: 5px; }
   .ak-lot-remove:hover { background: var(--soft-red); color: var(--red); }
-  .ak-fx-hint { font-size: 11px; color: var(--text-faint); margin: -3px 0 8px; }
+  .ak-fx-hint { font-size: 11px; color: var(--text-faint); margin: -3px 0 6px; }
   .ak-fx-hint.ok { color: var(--green); }
   .ak-fx-hint.err { color: var(--red); }
 
-  .ak-ghostbtn { background: none; border: 1px dashed var(--border); color: var(--text-muted); font-family: 'Inter', sans-serif; font-size: 12.5px; font-weight: 600; padding: 8px 10px; border-radius: 8px; cursor: pointer; width: 100%; margin-top: 2px; }
+  .ak-ghostbtn { background: none; border: 1px dashed var(--border); color: var(--text-muted); font-family: 'Inter', sans-serif; font-size: 12.5px; font-weight: 600; padding: 6px 10px; border-radius: 8px; cursor: pointer; width: 100%; margin-top: 2px; }
   .ak-ghostbtn:hover { border-color: var(--navy); color: var(--navy); background: var(--soft-navy); }
 
-  .ak-warn-note { color: var(--red); font-size: 12px; margin-top: 10px; }
+  .ak-warn-note { color: var(--red); font-size: 12px; margin-top: 8px; }
   .ak-hint-inline { font-weight: 400; color: var(--text-faint); font-size: 11px; }
-  .ak-mode-toggle { display: flex; gap: 6px; margin-bottom: 10px; }
+  .ak-mode-toggle { display: flex; gap: 6px; margin-bottom: 8px; }
   .ak-mode-btn {
     flex: 1; font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 600; color: var(--text-muted);
-    background: var(--bg); border: 1px solid var(--border); border-radius: 7px; padding: 7px 8px; cursor: pointer;
+    background: var(--bg); border: 1px solid var(--border); border-radius: 7px; padding: 6px 8px; cursor: pointer;
     transition: all 0.12s ease;
   }
   .ak-mode-btn:hover { border-color: var(--navy); }
@@ -410,6 +447,52 @@
   .ak-preview-row .v { font-family: 'Inconsolata', monospace; font-weight: 600; color: var(--text); }
   .ak-preview-row.total .v { color: var(--navy); font-weight: 800; font-size: 14px; }
   .ak-preview-row.total .k { color: var(--text); font-weight: 700; }
+
+  /* Hurtige salgsdetaljer */
+  .ak-sale-details-modal {
+    width: min(680px, 100%); max-height: 92vh; overflow: hidden; display: flex; flex-direction: column;
+    background: var(--card); border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 24px 60px var(--modal-shadow);
+  }
+  .ak-sale-details-body { padding: 20px; overflow-y: auto; }
+  .ak-details-hero { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 18px; }
+  .ak-details-hero .ak-company-logo-wrap { width: 46px; height: 46px; border-radius: 12px; }
+  .ak-details-return { text-align: right; flex-shrink: 0; }
+  .ak-details-return-value { font-family: 'Inconsolata', monospace; font-size: 22px; font-weight: 800; }
+  .ak-details-return-value.pos, .ak-details-stat-value.pos { color: var(--green); }
+  .ak-details-return-value.neg, .ak-details-stat-value.neg { color: var(--red); }
+  .ak-details-return-label { font-size: 10px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.07em; margin-top: 2px; }
+  .ak-details-price-link {
+    display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: var(--navy);
+    background: var(--soft-navy); border-radius: 7px; padding: 6px 11px; margin-bottom: 16px; text-decoration: none;
+    transition: filter 0.12s ease;
+  }
+  .ak-details-price-link:hover { filter: brightness(0.94); }
+  .ak-details-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; margin-bottom: 18px; }
+  .ak-details-stat { background: var(--entry-bg); border: 1px solid var(--border); border-radius: 10px; padding: 11px 12px; min-width: 0; }
+  .ak-details-stat-label { font-size: 10.5px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 5px; }
+  .ak-details-stat-value { font-family: 'Inconsolata', monospace; font-size: 16px; font-weight: 800; overflow-wrap: anywhere; }
+  .ak-details-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border: 1px solid var(--border); border-radius: 11px; overflow: hidden; margin-bottom: 16px; }
+  .ak-details-fact { padding: 10px 12px; border-bottom: 1px solid var(--border); min-width: 0; }
+  .ak-details-fact:nth-child(odd) { border-right: 1px solid var(--border); }
+  .ak-details-fact:nth-last-child(-n+2) { border-bottom: none; }
+  .ak-details-fact-label { font-size: 10.5px; color: var(--text-faint); margin-bottom: 3px; }
+  .ak-details-fact-value { font-size: 12.5px; font-weight: 700; color: var(--text); overflow-wrap: anywhere; }
+  .ak-details-section-title { font-size: 12px; font-weight: 800; color: var(--text); margin: 4px 0 8px; }
+  .ak-details-lots { display: flex; flex-direction: column; gap: 6px; }
+  .ak-details-lot { display: grid; grid-template-columns: 90px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 9px 11px; background: var(--entry-bg); border-radius: 8px; font-size: 11.5px; }
+  .ak-details-lot-date { color: var(--text-muted); }
+  .ak-details-lot-main { color: var(--text); font-weight: 700; }
+  .ak-details-lot-amount { font-family: 'Inconsolata', monospace; font-weight: 700; color: var(--text); white-space: nowrap; }
+  .ak-sale-details-footer { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 20px; border-top: 1px solid var(--border); }
+  @media (max-width: 560px) {
+    .ak-details-summary { grid-template-columns: 1fr; }
+    .ak-details-facts { grid-template-columns: 1fr; }
+    .ak-details-fact:nth-child(odd) { border-right: none; }
+    .ak-details-fact:nth-last-child(-n+2) { border-bottom: 1px solid var(--border); }
+    .ak-details-fact:last-child { border-bottom: none; }
+    .ak-details-lot { grid-template-columns: 1fr auto; }
+    .ak-details-lot-date { grid-column: 1 / -1; }
+  }
 
   /* Theme toggle */
   .ak-theme-toggle {
@@ -445,11 +528,16 @@
 
   @media (max-width: 780px) {
     .dash-shell { flex-direction: column; }
-    .dash-sidebar { width: 100%; flex-direction: row; align-items: center; padding: 12px 14px; gap: 10px; border-right: none; border-bottom: 1px solid var(--border); }
+    .dash-sidebar, .dash-sidebar.collapsed { width: 100%; flex-direction: row; align-items: center; padding: 12px 14px; gap: 10px; border-right: none; border-bottom: 1px solid var(--border); height: auto; top: 0; z-index: 5; overflow: visible; }
+    .dash-sidebar-top, .dash-sidebar.collapsed .dash-sidebar-top { display: none; }
     .dash-brand { display: none; }
     .dash-nav { flex-direction: row; flex: 1; overflow-x: auto; gap: 6px; }
-    .dash-nav-item { white-space: nowrap; }
+    .dash-nav-item, .dash-sidebar.collapsed .dash-nav-item { white-space: nowrap; justify-content: center; padding: 10px 12px; }
+    .dash-nav-label, .dash-sidebar.collapsed .dash-nav-label { opacity: 1; transform: none; max-width: 170px; }
     .dash-sidebar-bottom { border-top: none; margin-top: 0; padding-top: 0; flex-direction: row; align-items: center; }
+    .dash-sidebar.collapsed .dash-sidebar-actions { flex-direction: row; }
+    .dash-sidebar.collapsed .ak-logout-icon { display: none; }
+    .dash-sidebar.collapsed .ak-logout-label { max-width: 70px; opacity: 1; }
     .ak-user-info { display: none; }
     .dash-content { padding: 20px 14px 90px; }
   }
@@ -521,17 +609,21 @@
           gift: !!d.gift,
           extraYears: d.extraYears || [],
           customCurrencies: d.customCurrencies || [],
-          customBrokers: d.customBrokers || [],
+          brokers: Array.isArray(d.brokers) ? d.brokers : null,
           afkast: d.afkast || null,
           gammeltArkImporteret: !!d.gammeltArkImporteret
         };
+        if(!state.brokers){
+          state.brokers = Array.from(new Set(DEFAULT_BROKERS.concat(d.customBrokers || [])));
+          await setDoc(stateDocRef(), state);
+        }
       } else {
-        state = { sales: [], andenPerYear: {}, gift: false, extraYears: [], customCurrencies: [], customBrokers: [], afkast: null, gammeltArkImporteret: false };
+        state = { sales: [], andenPerYear: {}, gift: false, extraYears: [], customCurrencies: [], brokers: DEFAULT_BROKERS.slice(), afkast: null, gammeltArkImporteret: false };
         await setDoc(stateDocRef(), state);
       }
     } catch(e) {
       console.error('Kunne ikke hente data', e);
-      state = { sales: [], andenPerYear: {}, gift: false, extraYears: [], customCurrencies: [], customBrokers: [], afkast: null, gammeltArkImporteret: false };
+      state = { sales: [], andenPerYear: {}, gift: false, extraYears: [], customCurrencies: [], brokers: DEFAULT_BROKERS.slice(), afkast: null, gammeltArkImporteret: false };
     }
     indlaeserData = false;
     render();
@@ -560,8 +652,12 @@
   let tickerLookupTimer = null;
   let tickerLookupSequence = 0;
   let deferredInstallPrompt = null;
+  let detailsSaleId = null;
 
-  const DEFAULT_BROKERS = ['Nordnet', 'Endavu', 'Saxo Bank', 'Danske Bank', 'Jyske Bank', 'Nordea', 'Ikke angivet'];
+  const DEFAULT_BROKERS = ['Nordnet', 'Endavu', 'Saxo Bank', 'Danske Bank', 'Jyske Bank', 'Nordea'];
+  const NOT_SPECIFIED_BROKER = 'Ikke angivet';
+  let pendingBrokerDelete = null;
+  let pendingBrokerDeleteTimer = null;
 
   window.addEventListener('beforeinstallprompt', (event) => {
     event.preventDefault();
@@ -577,6 +673,7 @@
 
   const fmtKr = n => (n < 0 ? '−' : '') + Math.abs(n).toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' kr.';
   const fmtKrHel = n => (n < 0 ? '−' : '') + Math.round(Math.abs(n)).toLocaleString('da-DK') + ' kr.';
+  const fmtValuta = (n, valuta) => (n < 0 ? '−' : '') + Math.abs(n).toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + valuta;
   const fmtPct = n => (n >= 0 ? '+' : '') + n.toLocaleString('da-DK', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
 
   function save(){
@@ -622,6 +719,24 @@
       totalAntal += antal; totalDKK += dkkForLot;
     });
     return { totalAntal, totalDKK, gak: totalAntal > 0 ? totalDKK / totalAntal : 0 };
+  }
+
+  function computeGakValuta(lots, valuta){
+    if(valuta === 'DKK') return null;
+    let antalKurs = 0, sumValuta = 0, harDkkLots = false;
+    (lots || []).forEach(l => {
+      if((l.mode || 'kurs') === 'dkk'){ harDkkLots = true; return; }
+      const antal = parseFloat(l.antal) || 0;
+      const kurs = parseFloat(l.kurs) || 0;
+      antalKurs += antal; sumValuta += antal * kurs;
+    });
+    if(antalKurs <= 0) return null;
+    return { gak: sumValuta / antalKurs, komplet: !harDkkLots };
+  }
+
+  function googleKursUrl(s){
+    const soegeord = [s.ticker, s.navn, 'aktie kurs'].filter(Boolean).join(' ');
+    return `https://www.google.com/search?q=${encodeURIComponent(soegeord)}`;
   }
 
   function saleGevinst(s){
@@ -727,6 +842,7 @@
   function iconUndo(){ return '↺'; }
   function iconEdit(){ return '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>'; }
   function iconTrash(){ return '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6h16Z"/></svg>'; }
+  function iconExternal(){ return '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg>'; }
 
   function renderThemeToggle(){
     return `<button class="ak-theme-toggle" onclick="skiftTema()" aria-label="Skift mellem lyst og mørkt tema"><span class="ak-theme-toggle-dot">${darkMode ? iconSun() : iconMoon()}</span><span>${darkMode ? 'Lyst tema' : 'Dark mode'}</span></button>`;
@@ -796,6 +912,40 @@
       document.getElementById('infoBackBtn').addEventListener('click', () => {
         renderBloedt(() => { settingsView = 'main'; renderSettingsBody(); });
       });
+    } else if(settingsView === 'brokers'){
+      headerEl.innerHTML = `
+        <div class="ak-modal-header">
+          <button class="ak-modal-back tip-right" id="brokersBackBtn" data-tip="Tilbage">‹</button>
+          <div class="ak-modal-title">Mæglere</div>
+          <button class="ak-modal-close" id="settingsClose">×</button>
+        </div>
+      `;
+      const brokers = brokerListe();
+      bodyEl.innerHTML = `
+        <div style="padding:22px 26px;">
+          ${brokers.length ? brokers.map(navn => `
+            <div class="ak-broker-row">
+              <div class="ak-broker-row-name">${escapeHtml(navn)}</div>
+              <button class="ak-broker-row-del" data-navn="${escapeHtml(navn)}" aria-label="Slet ${escapeHtml(navn)}">${iconTrash()}</button>
+            </div>
+          `).join('') : `<div class="ak-broker-empty">Ingen mæglere tilføjet endnu.</div>`}
+          <div class="ak-broker-add-row">
+            <input type="text" id="nyMaeglerInput" placeholder="Navn på ny mægler, fx Nykredit">
+            <button class="ak-broker-add-btn" id="tilfoejMaeglerBtn">Tilføj</button>
+          </div>
+        </div>
+      `;
+      document.getElementById('brokersBackBtn').addEventListener('click', () => {
+        renderBloedt(() => { settingsView = 'main'; renderSettingsBody(); });
+      });
+      bodyEl.querySelectorAll('.ak-broker-row-del').forEach(btn => {
+        btn.addEventListener('click', () => slettMaeglerFraIndstillinger(btn.dataset.navn));
+      });
+      const tilfoejBtn = document.getElementById('tilfoejMaeglerBtn');
+      const nyInput = document.getElementById('nyMaeglerInput');
+      const tilfoej = () => { if(tilfoejMaeglerFraIndstillinger(nyInput.value)) renderSettingsBody(); };
+      tilfoejBtn.addEventListener('click', tilfoej);
+      nyInput.addEventListener('keydown', e => { if(e.key === 'Enter') tilfoej(); });
     } else {
       headerEl.innerHTML = `
         <div class="ak-modal-header">
@@ -829,22 +979,14 @@
             <span class="ak-settings-row-chevron">›</span>
           </button>
 
-          ${!state.gammeltArkImporteret ? `
-          <button class="ak-settings-row ak-settings-row-link" id="importGamleSalgBtn" style="margin-top:10px;">
+          <button class="ak-settings-row ak-settings-row-link" id="openBrokersBtn" style="margin-top:10px;">
             <div class="ak-settings-row-text">
-              <div class="ak-settings-row-title">Importér tidligere salg</div>
-              <div class="ak-settings-row-sub">Indsætter de 7 handler fra dit gamle salgsark (2025)</div>
+              <div class="ak-settings-row-title">Mæglere</div>
+              <div class="ak-settings-row-sub">${brokerListe().length} tilføjet — tilføj eller fjern mæglere</div>
             </div>
             <span class="ak-settings-row-chevron">›</span>
           </button>
-          ` : `
-          <div class="ak-settings-row" style="margin-top:10px; opacity:0.6;">
-            <div class="ak-settings-row-text">
-              <div class="ak-settings-row-title">Tidligere salg importeret ✓</div>
-              <div class="ak-settings-row-sub">De 7 handler fra dit gamle ark er allerede tilføjet</div>
-            </div>
-          </div>
-          `}
+
         </div>
       `;
       document.getElementById('installAppBtn').addEventListener('click', haandterAppInstallation);
@@ -857,40 +999,11 @@
       document.getElementById('openInfoBtn').addEventListener('click', () => {
         renderBloedt(() => { settingsView = 'info'; renderSettingsBody(); });
       });
-      const importBtn = document.getElementById('importGamleSalgBtn');
-      if(importBtn){
-        importBtn.addEventListener('click', () => {
-          importGamleSalg();
-          closeSettingsModal();
-          activeYear = 2025;
-          renderBloedt();
-        });
-      }
+      document.getElementById('openBrokersBtn').addEventListener('click', () => {
+        renderBloedt(() => { settingsView = 'brokers'; renderSettingsBody(); });
+      });
     }
     document.getElementById('settingsClose').addEventListener('click', closeSettingsModal);
-  }
-
-  function importGamleSalg(){
-    if(state.gammeltArkImporteret) return;
-    const nytSalg = (navn, type, aar, kobsDato, kobsBelob, salgDato, salgBelob, antal) => ({
-      id: 'sale_import_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
-      navn, ticker: '', logoUrl: '', maegler: 'Ikke angivet', type, aar, valuta: 'DKK',
-      buys: [{ dato: kobsDato, antal, mode: 'dkk', kurs: 0, rate: 1, totalDkk: kobsBelob }],
-      salgDato, antalSolgt: antal, salgMode: 'dkk', salgskurs: 0, salgRate: 1,
-      salgBelobDkk: salgBelob, salgsomk: 0, satsmode: 'auto'
-    });
-    const importerede = [
-      nytSalg('Tesla', 'Aktie', 2025, '2025-06-05', 2295.77, '2025-06-23', 2823.16, 1),
-      nytSalg('Novo Nordisk', 'Aktie', 2025, '2025-05-15', 2186.00, '2025-06-02', 2362.00, 1),
-      nytSalg('United Health', 'Aktie', 2025, '2025-05-23', 308.33, '2025-06-30', 312.60, 1),
-      nytSalg('DKIDKIX', 'ETF', 2025, '2024-02-08', 503.93, '2025-09-03', 437.90, 3),
-      nytSalg('QBTS', 'Aktie', 2025, '2025-09-03', 1957.19, '2025-10-13', 4547.52, 19),
-      nytSalg('Novo Nordisk', 'Aktie', 2025, '2025-07-21', 7917.50, '2025-11-05', 6615.70, 1),
-      nytSalg('Alphabet', 'Aktie', 2025, '2025-06-30', 3109.31, '2025-11-20', 5411.47, 1)
-    ];
-    state.sales = state.sales.concat(importerede);
-    state.gammeltArkImporteret = true;
-    save();
   }
 
   function renderSkatInfo(){
@@ -948,12 +1061,13 @@
   }
 
   function brokerListe(){
-    const custom = state && Array.isArray(state.customBrokers) ? state.customBrokers : [];
-    return Array.from(new Set(DEFAULT_BROKERS.concat(custom))).filter(Boolean);
+    const custom = state && Array.isArray(state.brokers) ? state.brokers : [];
+    return Array.from(new Set(custom)).filter(Boolean);
   }
 
   function brokerOptionsHtml(){
     return brokerListe().map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('')
+      + `<option value="${escapeHtml(NOT_SPECIFIED_BROKER)}">${escapeHtml(NOT_SPECIFIED_BROKER)}</option>`
       + '<option value="__tilfoej__">+ Tilføj ny mægler …</option>';
   }
 
@@ -963,16 +1077,60 @@
     const navn = prompt('Skriv navnet på mægleren:');
     const clean = String(navn || '').trim();
     if(clean){
-      if(!state.customBrokers) state.customBrokers = [];
-      if(!brokerListe().some(x => x.toLowerCase() === clean.toLowerCase())) state.customBrokers.push(clean);
+      if(!state.brokers) state.brokers = [];
+      if(!brokerListe().some(x => x.toLowerCase() === clean.toLowerCase())) state.brokers.push(clean);
       save();
       sel.innerHTML = brokerOptionsHtml();
       const actual = brokerListe().find(x => x.toLowerCase() === clean.toLowerCase()) || clean;
       sel.value = actual;
     } else {
-      sel.value = 'Nordnet';
+      sel.value = NOT_SPECIFIED_BROKER;
     }
     updatePreview();
+  }
+
+  function tilfoejMaeglerFraIndstillinger(navn){
+    const clean = String(navn || '').trim();
+    if(!clean) return false;
+    if(!state.brokers) state.brokers = [];
+    if(brokerListe().some(x => x.toLowerCase() === clean.toLowerCase())) return false;
+    state.brokers.push(clean);
+    save();
+    return true;
+  }
+
+  function refreshBrokerToast(){
+    const el = document.getElementById('brokerToastContainer');
+    if(el) el.innerHTML = renderBrokerUndoToast();
+  }
+
+  function slettMaeglerFraIndstillinger(navn){
+    const idx = (state.brokers || []).findIndex(x => x === navn);
+    if(idx === -1) return;
+    const [removed] = state.brokers.splice(idx, 1);
+    save();
+    if(pendingBrokerDeleteTimer) clearTimeout(pendingBrokerDeleteTimer);
+    pendingBrokerDelete = { navn: removed, idx };
+    renderSettingsBody();
+    refreshBrokerToast();
+    pendingBrokerDeleteTimer = setTimeout(() => { pendingBrokerDelete = null; refreshBrokerToast(); }, 6000);
+  }
+
+  window.fortrydMaegler = function(){
+    if(!pendingBrokerDelete) return;
+    const { navn, idx } = pendingBrokerDelete;
+    if(!state.brokers) state.brokers = [];
+    state.brokers.splice(Math.min(idx, state.brokers.length), 0, navn);
+    pendingBrokerDelete = null;
+    if(pendingBrokerDeleteTimer) clearTimeout(pendingBrokerDeleteTimer);
+    save();
+    renderSettingsBody();
+    refreshBrokerToast();
+  };
+
+  function renderBrokerUndoToast(){
+    if(!pendingBrokerDelete) return '';
+    return `<button class="ak-undo-btn ak-undo-btn-secondary" onclick="fortrydMaegler()">${iconUndo()} "${escapeHtml(pendingBrokerDelete.navn)}" slettet · Fortryd</button>`;
   }
 
   function companyLogoHtml(s, isGain){
@@ -992,6 +1150,52 @@
     return `<div class="ak-entry-left">${companyLogoHtml(s, isGain)}<div class="ak-entry-identity"><span class="ak-entry-name">${escapeHtml(displayName)}</span><span class="ak-entry-badges">${tickerBadge}${brokerBadge}${fxBadge}${yearBadge}</span></div></div>`;
   }
 
+  function formatDatoDa(isoDato){
+    if(!isoDato) return 'Ikke angivet';
+    const dele = String(isoDato).split('-').map(Number);
+    if(dele.length !== 3 || dele.some(Number.isNaN)) return isoDato;
+    return new Intl.DateTimeFormat('da-DK', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(dele[0], dele[1] - 1, dele[2]));
+  }
+
+  function saleFinancialChipsHtml(s){
+    const isGain = s.gevinst >= 0;
+    const netto = s.gevinst - s.skat;
+    return `<span class="ak-fin-chips">
+      <span class="ak-fin-chip"><span class="lbl">Gevinst</span><span class="val ${isGain ? 'pos' : 'neg'}">${fmtKr(s.gevinst)}</span></span>
+      <span class="ak-fin-chip"><span class="lbl">Skat</span><span class="val">${fmtKr(s.skat)}</span></span>
+      <span class="ak-fin-chip"><span class="lbl">Efter skat</span><span class="val ${netto >= 0 ? 'pos' : 'neg'}">${fmtKr(netto)}</span></span>
+    </span>`;
+  }
+
+  function saleEntryHtml(s, options = {}){
+    const isGain = s.gevinst >= 0;
+    const pct = s.kobsbelob !== 0 ? (s.gevinst / s.kobsbelob) * 100 : 0;
+    const pctStr = (pct >= 0 ? '+' : '') + pct.toLocaleString('da-DK', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
+    const showYear = !!options.showYear;
+    const searchMode = options.mode === 'search';
+    const satsMode = s.satsmode || 'auto';
+    const satsLabel = satsMode === 'auto' ? 'auto' : satsMode + '%';
+    const satsMeta = options.showSats ? ` · sats ${escapeHtml(satsLabel)}` : '';
+    const editAttr = searchMode ? 'data-sog-edit' : 'data-edit';
+    const delAttr = searchMode ? 'data-sog-del' : 'data-del';
+    return `
+      <div class="ak-entry" data-sale-details="${escapeHtml(s.id)}" tabindex="0" role="button" aria-label="Vis detaljer om ${escapeHtml(s.navn || s.ticker || 'salget')}">
+        <div class="ak-entry-row-top">
+          ${saleIdentityHtml(s, isGain, showYear)}
+          <div class="ak-entry-top-right">
+            <span class="ak-entry-pct ${isGain ? 'pos' : 'neg'}">${pctStr}</span>
+            <button class="ak-edit-btn" ${editAttr}="${escapeHtml(s.id)}" data-tip="Rediger" aria-label="Rediger salg">${iconEdit()}</button>
+            <button class="ak-del-btn" ${delAttr}="${escapeHtml(s.id)}" data-tip="Slet" aria-label="Slet salg">${iconTrash()}</button>
+            <span class="ak-entry-chevron" aria-hidden="true">›</span>
+          </div>
+        </div>
+        <div class="ak-entry-row-bottom">
+          <span class="ak-entry-meta">${escapeHtml(s.type)} · Køb ${fmtKr(s.kobsbelob)} · Salg ${fmtKr(s.salgsbelob)}${satsMeta}</span>
+          ${saleFinancialChipsHtml(s)}
+        </div>
+      </div>`;
+  }
+
   async function fetchJsonMedFallback(url){
     const attempts = [
       url,
@@ -1008,20 +1212,98 @@
     return null;
   }
 
+  function rensVaerdipapirNavn(value, ticker){
+    let navn = String(value || '').trim().replace(/\s+/g, ' ');
+    if(!navn) return '';
+
+    // Nasdaq tilføjer ofte selve værdipapirtypen efter virksomhedsnavnet.
+    // Vi beholder fx "Class C", men fjerner den overflødige afslutning "Capital Stock".
+    navn = navn
+      .replace(/\s+(Common Stock|Capital Stock)$/i, '')
+      .replace(/\s+(American Depositary Shares?|Depositary Shares?|Ordinary Shares?)$/i, '')
+      .replace(/\s+(ADS|ADR)$/i, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    // Yahoo returnerer i enkelte tilfælde kun tickeren som navn. Det er ikke et brugbart navn.
+    return normaliserTicker(navn) === normaliserTicker(ticker) ? '' : navn;
+  }
+
+  function tilfoejKendtAktieklasse(navn, ticker){
+    const clean = normaliserTicker(ticker);
+    const klasser = {
+      'GOOG': 'Class C',
+      'GOOGL': 'Class A',
+      'BRK-A': 'Class A',
+      'BRK-B': 'Class B'
+    };
+    const aktieklasse = klasser[clean];
+    if(!navn || !aktieklasse || /\bclass\s+[a-z0-9]+\b/i.test(navn)) return navn;
+    return `${navn.replace(/[.,;:]\s*$/, '')} ${aktieklasse}`;
+  }
+
+  async function hentYahooQuoteDetaljer(ticker){
+    const endpoint = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(ticker)}`;
+    const data = await fetchJsonMedFallback(endpoint);
+    const resultater = data && data.quoteResponse && Array.isArray(data.quoteResponse.result)
+      ? data.quoteResponse.result
+      : [];
+    return resultater.find(item => normaliserTicker(item.symbol) === normaliserTicker(ticker)) || resultater[0] || null;
+  }
+
+  async function hentNasdaqAktienavn(ticker){
+    // Nasdaq er især nyttig til amerikanske aktier, fordi navnet ofte indeholder aktieklassen.
+    // Punktum bruges som bindestreg i Nasdaq-symboler, fx BRK.B -> BRK-B.
+    const clean = normaliserTicker(ticker);
+    if(!/^[A-Z0-9.-]{1,12}$/.test(clean) || /\.[A-Z]{2,4}$/.test(clean)) return '';
+    const nasdaqTicker = clean.replace(/\./g, '-');
+    const endpoint = `https://api.nasdaq.com/api/quote/${encodeURIComponent(nasdaqTicker)}/info?assetclass=stocks`;
+    const data = await fetchJsonMedFallback(endpoint);
+    const primaryData = data && data.data && data.data.primaryData ? data.data.primaryData : null;
+    const summaryData = data && data.data && data.data.summaryData ? data.data.summaryData : null;
+    return rensVaerdipapirNavn(
+      (data && data.data && data.data.companyName)
+      || (primaryData && primaryData.companyName)
+      || (summaryData && summaryData.CompanyName && summaryData.CompanyName.value)
+      || '',
+      clean
+    );
+  }
+
   async function slaaTickerOp(ticker){
     const clean = normaliserTicker(ticker);
     if(!clean) return null;
+
     const endpoint = `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(clean)}&quotesCount=8&newsCount=0&enableFuzzyQuery=false`;
-    const data = await fetchJsonMedFallback(endpoint);
+    const [data, quoteDetails, nasdaqNavn] = await Promise.all([
+      fetchJsonMedFallback(endpoint),
+      hentYahooQuoteDetaljer(clean),
+      hentNasdaqAktienavn(clean)
+    ]);
+
     const quotes = data && Array.isArray(data.quotes) ? data.quotes : [];
     const exact = quotes.find(q => normaliserTicker(q.symbol) === clean);
-    const candidate = exact || quotes.find(q => ['EQUITY','ETF','MUTUALFUND'].includes(String(q.quoteType || '').toUpperCase())) || quotes[0];
-    if(!candidate || !candidate.symbol) return null;
-    const quoteType = String(candidate.quoteType || '').toUpperCase();
+    const candidate = exact || quotes.find(q => ['EQUITY','ETF','MUTUALFUND'].includes(String(q.quoteType || '').toUpperCase())) || quotes[0] || quoteDetails;
+    if(!candidate || !(candidate.symbol || clean)) return null;
+
+    const symbol = normaliserTicker(candidate.symbol || quoteDetails?.symbol || clean);
+    const quoteType = String(candidate.quoteType || quoteDetails?.quoteType || '').toUpperCase();
+    const navneKandidater = [
+      nasdaqNavn,
+      quoteDetails && quoteDetails.longName,
+      candidate.longname,
+      quoteDetails && quoteDetails.shortName,
+      candidate.shortname,
+      quoteDetails && quoteDetails.displayName
+    ].map(navn => rensVaerdipapirNavn(navn, symbol)).filter(Boolean);
+
+    let navn = navneKandidater[0] || symbol;
+    if(quoteType === 'EQUITY' || quoteType === '') navn = tilfoejKendtAktieklasse(navn, symbol);
+
     return {
-      ticker: normaliserTicker(candidate.symbol),
-      navn: candidate.longname || candidate.shortname || candidate.symbol,
-      logoUrl: tickerLogoUrl(candidate.symbol),
+      ticker: symbol,
+      navn,
+      logoUrl: tickerLogoUrl(symbol),
       type: quoteType === 'ETF' ? 'ETF' : quoteType === 'MUTUALFUND' ? 'Investeringsfond' : 'Aktie'
     };
   }
@@ -1162,7 +1444,7 @@
             <div class="ak-user-info">${escapeHtml(currentUser.email)}</div>
             <div class="dash-sidebar-actions">
               <button class="ak-settings-btn tip-right" id="openSettingsBtn" data-tip="Indstillinger" aria-label="Indstillinger">⚙️</button>
-              <button class="ak-logout-btn tip-right" id="logoutBtn" ${sidebarCollapsed ? 'data-tip="Log ud"' : ''}>Log ud</button>
+              <button class="ak-logout-btn tip-right" id="logoutBtn" ${sidebarCollapsed ? 'data-tip="Log ud"' : ''}><span class="ak-logout-icon" aria-hidden="true">⏻</span><span class="ak-logout-label">Log ud</span></button>
             </div>
           </div>
         </aside>
@@ -1172,9 +1454,11 @@
       </div>
 
       ${renderModalShell()}
+      ${renderSaleDetailsModal()}
       ${renderSettingsModal()}
       ${renderThemeToggle()}
       ${renderUndoToast()}
+      <div id="brokerToastContainer">${renderBrokerUndoToast()}</div>
     `;
 
     document.querySelectorAll('.dash-nav-item').forEach(btn => btn.addEventListener('click', () => {
@@ -1183,7 +1467,22 @@
     document.getElementById('sidebarToggleBtn').addEventListener('click', () => {
       sidebarCollapsed = !sidebarCollapsed;
       try { localStorage.setItem('verktoj-sidebar-collapsed', sidebarCollapsed ? '1' : '0'); } catch(e){}
-      renderBloedt();
+      const sidebar = document.querySelector('.dash-sidebar');
+      const toggleBtn = document.getElementById('sidebarToggleBtn');
+      if(sidebar) sidebar.classList.toggle('collapsed', sidebarCollapsed);
+      if(toggleBtn){
+        toggleBtn.textContent = sidebarCollapsed ? '›' : '‹';
+        toggleBtn.dataset.tip = sidebarCollapsed ? 'Fold menu ud' : 'Fold menu sammen';
+      }
+      document.querySelectorAll('.dash-nav-item').forEach(btn => {
+        if(sidebarCollapsed) btn.dataset.tip = btn.querySelector('.dash-nav-label')?.textContent || '';
+        else btn.removeAttribute('data-tip');
+      });
+      const logoutBtn = document.getElementById('logoutBtn');
+      if(logoutBtn){
+        if(sidebarCollapsed) logoutBtn.dataset.tip = 'Log ud';
+        else logoutBtn.removeAttribute('data-tip');
+      }
     });
     document.getElementById('openSettingsBtn').addEventListener('click', openSettingsModal);
     document.getElementById('logoutBtn').addEventListener('click', logUd);
@@ -1285,33 +1584,7 @@
             <button class="ak-add-btn" id="openAddBtn">+ Tilføj salg</button>
           </div>
           <div class="ak-entry-list" id="salesList">
-            ${yearData.sales.length === 0 ? `<div class="ak-empty-panel">Ingen salg registreret for ${activeYear} endnu. Klik "+ Tilføj salg" for at komme i gang.</div>` : yearData.sales.map(s => {
-              const g = s.gevinst >= 0;
-              const fxBadge = s.valuta !== 'DKK' ? `<span class="ak-fx-badge">${s.valuta}</span>` : '';
-              const satsLabel = s.satsmode === 'auto' ? 'auto' : s.satsmode + '%';
-              const pct = s.kobsbelob !== 0 ? (s.gevinst / s.kobsbelob) * 100 : 0;
-              const pctStr = (pct >= 0 ? '+' : '') + pct.toLocaleString('da-DK', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
-              return `
-                <div class="ak-entry">
-                  <div class="ak-entry-row-top">
-                    ${saleIdentityHtml(s, g, false)}
-                    <div class="ak-entry-top-right">
-                      <span class="ak-entry-pct ${g ? 'pos' : 'neg'}">${pctStr}</span>
-                      <button class="ak-edit-btn" data-edit="${s.id}" data-tip="Rediger">${iconEdit()}</button>
-                      <button class="ak-del-btn" data-del="${s.id}" data-tip="Slet">${iconTrash()}</button>
-                    </div>
-                  </div>
-                  <div class="ak-entry-row-bottom">
-                    <span class="ak-entry-meta">${s.type} · ${escapeHtml(s.maegler || 'Ikke angivet')} · Køb ${fmtKr(s.kobsbelob)} · Salg ${fmtKr(s.salgsbelob)} · sats ${satsLabel}</span>
-                    <span class="ak-fin-chips">
-                      <span class="ak-fin-chip"><span class="lbl">Gevinst</span><span class="val ${g ? 'pos' : 'neg'}">${fmtKr(s.gevinst)}</span></span>
-                      <span class="ak-fin-chip"><span class="lbl">Skat</span><span class="val">${fmtKr(s.skat)}</span></span>
-                      <span class="ak-fin-chip highlight"><span class="lbl">Efter skat</span><span class="val">${fmtKr(s.gevinst - s.skat)}</span></span>
-                    </span>
-                  </div>
-                </div>
-              `;
-            }).join('')}
+            ${yearData.sales.length === 0 ? `<div class="ak-empty-panel">Ingen salg registreret for ${activeYear} endnu. Klik "+ Tilføj salg" for at komme i gang.</div>` : yearData.sales.map(s => saleEntryHtml(s, { showYear: false, mode: 'year', showSats: true })).join('')}
           </div>
         </div>
 
@@ -1340,8 +1613,9 @@
       document.getElementById('andenEditBtn').addEventListener('click', () => { andenEditing = true; renderBloedt(); });
     }
     document.getElementById('ledgerToggleBtn').addEventListener('click', () => { ledgerOpen = !ledgerOpen; renderBloedt(); });
-    document.querySelectorAll('[data-edit]').forEach(btn => btn.addEventListener('click', () => openModal(btn.dataset.edit)));
-    document.querySelectorAll('[data-del]').forEach(btn => btn.addEventListener('click', () => deleteSale(btn.dataset.del)));
+    document.querySelectorAll('[data-edit]').forEach(btn => btn.addEventListener('click', (e) => { e.stopPropagation(); openModal(btn.dataset.edit); }));
+    document.querySelectorAll('[data-del]').forEach(btn => btn.addEventListener('click', (e) => { e.stopPropagation(); deleteSale(btn.dataset.del); }));
+    wireSaleCards(document.getElementById('salesList'));
     document.getElementById('openAddBtn').addEventListener('click', () => openModal(null));
   }
 
@@ -1578,31 +1852,7 @@
             <div class="ak-list-title">${filtered.length} ${filtered.length === 1 ? 'salg' : 'salg'} fundet</div>
           </div>
           <div class="ak-entry-list" id="sogList">
-            ${filtered.length === 0 ? `<div class="ak-empty-panel">Ingen salg matcher din søgning.</div>` : filtered.map(s => {
-              const g = s.gevinst >= 0;
-              const fxBadge = s.valuta !== 'DKK' ? `<span class="ak-fx-badge">${s.valuta}</span>` : '';
-              const pct = s.kobsbelob !== 0 ? (s.gevinst / s.kobsbelob) * 100 : 0;
-              const pctStr = (pct >= 0 ? '+' : '') + pct.toLocaleString('da-DK', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
-              return `
-                <div class="ak-entry">
-                  <div class="ak-entry-row-top">
-                    ${saleIdentityHtml(s, g, true)}
-                    <div class="ak-entry-top-right">
-                      <span class="ak-entry-pct ${g ? 'pos' : 'neg'}">${pctStr}</span>
-                      <button class="ak-edit-btn" data-sog-edit="${s.id}" data-tip="Rediger">${iconEdit()}</button>
-                      <button class="ak-del-btn" data-sog-del="${s.id}" data-tip="Slet">${iconTrash()}</button>
-                    </div>
-                  </div>
-                  <div class="ak-entry-row-bottom">
-                    <span class="ak-entry-meta">${s.type} · ${escapeHtml(s.maegler || 'Ikke angivet')} · Køb ${fmtKr(s.kobsbelob)} · Salg ${fmtKr(s.salgsbelob)}</span>
-                    <span class="ak-fin-chips">
-                      <span class="ak-fin-chip"><span class="lbl">Gevinst</span><span class="val ${g ? 'pos' : 'neg'}">${fmtKr(s.gevinst)}</span></span>
-                      <span class="ak-fin-chip highlight"><span class="lbl">Efter skat</span><span class="val">${fmtKr(s.gevinst - s.skat)}</span></span>
-                    </span>
-                  </div>
-                </div>
-              `;
-            }).join('')}
+            ${filtered.length === 0 ? `<div class="ak-empty-panel">Ingen salg matcher din søgning.</div>` : filtered.map(s => saleEntryHtml(s, { showYear: true, mode: 'search', showSats: false })).join('')}
           </div>
         </div>
       </div>
@@ -1622,8 +1872,9 @@
   }
 
   function wireSogListButtons(){
-    document.querySelectorAll('[data-sog-edit]').forEach(btn => btn.addEventListener('click', () => openModal(btn.dataset.sogEdit)));
-    document.querySelectorAll('[data-sog-del]').forEach(btn => btn.addEventListener('click', () => deleteSale(btn.dataset.sogDel)));
+    document.querySelectorAll('[data-sog-edit]').forEach(btn => btn.addEventListener('click', (e) => { e.stopPropagation(); openModal(btn.dataset.sogEdit); }));
+    document.querySelectorAll('[data-sog-del]').forEach(btn => btn.addEventListener('click', (e) => { e.stopPropagation(); deleteSale(btn.dataset.sogDel); }));
+    wireSaleCards(document.getElementById('sogList'));
   }
 
   // Live re-filter of just the list (keeps focus in the search box while typing)
@@ -1634,31 +1885,9 @@
     const titleEl = document.querySelector('.ak-list-title');
     if(!listEl) return;
     if(titleEl) titleEl.textContent = `${filtered.length} ${filtered.length === 1 ? 'salg' : 'salg'} fundet`;
-    listEl.innerHTML = filtered.length === 0 ? `<div class="ak-empty-panel">Ingen salg matcher din søgning.</div>` : filtered.map(s => {
-      const g = s.gevinst >= 0;
-      const fxBadge = s.valuta !== 'DKK' ? `<span class="ak-fx-badge">${s.valuta}</span>` : '';
-      const pct = s.kobsbelob !== 0 ? (s.gevinst / s.kobsbelob) * 100 : 0;
-      const pctStr = (pct >= 0 ? '+' : '') + pct.toLocaleString('da-DK', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
-      return `
-        <div class="ak-entry">
-          <div class="ak-entry-row-top">
-            ${saleIdentityHtml(s, g, true)}
-            <div class="ak-entry-top-right">
-              <span class="ak-entry-pct ${g ? 'pos' : 'neg'}">${pctStr}</span>
-              <button class="ak-edit-btn" data-sog-edit="${s.id}" data-tip="Rediger">${iconEdit()}</button>
-              <button class="ak-del-btn" data-sog-del="${s.id}" data-tip="Slet">${iconTrash()}</button>
-            </div>
-          </div>
-          <div class="ak-entry-row-bottom">
-            <span class="ak-entry-meta">${s.type} · ${escapeHtml(s.maegler || 'Ikke angivet')} · Køb ${fmtKr(s.kobsbelob)} · Salg ${fmtKr(s.salgsbelob)}</span>
-            <span class="ak-fin-chips">
-              <span class="ak-fin-chip"><span class="lbl">Gevinst</span><span class="val ${g ? 'pos' : 'neg'}">${fmtKr(s.gevinst)}</span></span>
-              <span class="ak-fin-chip highlight"><span class="lbl">Efter skat</span><span class="val">${fmtKr(s.gevinst - s.skat)}</span></span>
-            </span>
-          </div>
-        </div>
-      `;
-    }).join('');
+    listEl.innerHTML = filtered.length === 0
+      ? `<div class="ak-empty-panel">Ingen salg matcher din søgning.</div>`
+      : filtered.map(s => saleEntryHtml(s, { showYear: true, mode: 'search', showSats: false })).join('');
     wireSogListButtons();
   }
 
@@ -1732,9 +1961,11 @@
                 <button type="button" class="ak-mode-btn" id="salgModeKursBtn" data-mode="kurs">Kurs + valutakurs</button>
               </div>
               <div id="salgAmountArea"></div>
-              <div class="ak-field"><label for="salgsomk">Salgsomkostninger (DKK)</label><input type="number" id="salgsomk" value="0" min="0" step="any"></div>
-              <div class="ak-field"><label for="satsmode">Skattesats</label>
-                <select id="satsmode"><option value="auto">Automatisk (progression)</option><option value="27">Fast 27%</option><option value="42">Fast 42%</option></select>
+              <div class="ak-field-row">
+                <div class="ak-field"><label for="salgsomk">Salgsomkostninger (DKK)</label><input type="number" id="salgsomk" value="0" min="0" step="any"></div>
+                <div class="ak-field"><label for="satsmode">Skattesats</label>
+                  <select id="satsmode"><option value="auto">Automatisk (progression)</option><option value="27">Fast 27%</option><option value="42">Fast 42%</option></select>
+                </div>
               </div>
               <div class="ak-warn-note" id="warnNote" style="display:none;"></div>
             </div>
@@ -1751,6 +1982,147 @@
         </div>
       </div>
     `;
+  }
+
+  function renderSaleDetailsModal(){
+    return `
+      <div class="ak-modal-overlay" id="saleDetailsOverlay" aria-hidden="true">
+        <div class="ak-sale-details-modal" role="dialog" aria-modal="true" aria-labelledby="saleDetailsTitle">
+          <div id="saleDetailsContent"></div>
+        </div>
+      </div>`;
+  }
+
+  function lotBelobDkk(lot, valuta){
+    if((lot.mode || 'kurs') === 'dkk') return parseFloat(lot.totalDkk) || 0;
+    const antal = parseFloat(lot.antal) || 0;
+    const kurs = parseFloat(lot.kurs) || 0;
+    const rate = valuta === 'DKK' ? 1 : (parseFloat(lot.rate) || 0);
+    return antal * kurs * rate + (parseFloat(lot.komk) || 0);
+  }
+
+  function beregnHoldetid(s){
+    const koebsdatoer = (s.buys || []).map(l => l.dato).filter(Boolean).sort();
+    if(!koebsdatoer.length || !s.salgDato) return 'Ikke beregnet';
+    const tilUtc = value => {
+      const [y, m, d] = String(value).split('-').map(Number);
+      return Date.UTC(y, m - 1, d);
+    };
+    const dage = Math.max(0, Math.round((tilUtc(s.salgDato) - tilUtc(koebsdatoer[0])) / 86400000));
+    if(dage < 60) return `${dage} dage`;
+    if(dage < 730) return `${Math.round(dage / 30.44)} måneder`;
+    const aar = dage / 365.25;
+    return `${aar.toLocaleString('da-DK', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} år`;
+  }
+
+  function findComputedSale(saleId){
+    return getAlleSalgBeregnet().find(s => s.id === saleId) || null;
+  }
+
+  function renderSaleDetailsContent(s){
+    const isGain = s.gevinst >= 0;
+    const pct = s.kobsbelob !== 0 ? (s.gevinst / s.kobsbelob) * 100 : 0;
+    const pctStr = (pct >= 0 ? '+' : '') + pct.toLocaleString('da-DK', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
+    const satsMode = s.satsmode || 'auto';
+    const satsLabel = satsMode === 'auto' ? 'Automatisk progression' : `${satsMode}% fast sats`;
+    const lots = s.buys || [];
+    const lotsHtml = lots.length ? lots.map((lot, index) => `
+      <div class="ak-details-lot">
+        <span class="ak-details-lot-date">${formatDatoDa(lot.dato)}</span>
+        <span class="ak-details-lot-main">Køb ${index + 1} · ${(parseFloat(lot.antal) || 0).toLocaleString('da-DK', { maximumFractionDigits: 6 })} stk.</span>
+        <span class="ak-details-lot-amount">${fmtKr(lotBelobDkk(lot, s.valuta))}</span>
+      </div>`).join('') : `<div class="ak-broker-empty">Ingen køb er registreret.</div>`;
+
+    const gakValuta = computeGakValuta(s.buys || [], s.valuta);
+
+    const fakta = [
+      ['Gennemsnitskurs (GAK)', fmtKr(s.gak)],
+      ...(gakValuta ? [[`Gennemsnitskurs i ${s.valuta}${gakValuta.komplet ? '' : ' (delvis)'}`, fmtValuta(gakValuta.gak, s.valuta)]] : []),
+      ['Antal solgt', `${(parseFloat(s.antalSolgt) || 0).toLocaleString('da-DK', { maximumFractionDigits: 6 })} stk.`],
+      ['Købt i alt', `${(parseFloat(s.totalKobtAntal) || 0).toLocaleString('da-DK', { maximumFractionDigits: 6 })} stk.`],
+      ['Salgsdato', formatDatoDa(s.salgDato)],
+      ['Mægler', s.maegler || 'Ikke angivet'],
+      ['Valuta', s.valuta || 'DKK'],
+      ['Skattesats', satsLabel],
+      ['Holdetid', beregnHoldetid(s)],
+      ['Købsbeløb', fmtKr(s.kobsbelob)],
+      ['Salgsbeløb', fmtKr(s.salgsbelob)]
+    ];
+
+    return `
+      <div class="ak-modal-header">
+        <div class="ak-modal-title" id="saleDetailsTitle">Hurtige fakta om salget</div>
+        <button class="ak-modal-close" id="saleDetailsClose" aria-label="Luk">×</button>
+      </div>
+      <div class="ak-sale-details-body">
+        <div class="ak-details-hero">
+          ${saleIdentityHtml(s, isGain, true)}
+          <div class="ak-details-return">
+            <div class="ak-details-return-value ${isGain ? 'pos' : 'neg'}">${pctStr}</div>
+            <div class="ak-details-return-label">Afkast</div>
+          </div>
+        </div>
+        ${s.ticker ? `<a class="ak-details-price-link" href="${escapeHtml(googleKursUrl(s))}" target="_blank" rel="noopener">${iconExternal()} Tjek kursen nu på Google</a>` : ''}
+        <div class="ak-details-summary">
+          <div class="ak-details-stat"><div class="ak-details-stat-label">Gevinst / tab</div><div class="ak-details-stat-value ${isGain ? 'pos' : 'neg'}">${fmtKr(s.gevinst)}</div></div>
+          <div class="ak-details-stat"><div class="ak-details-stat-label">Beregnet skat</div><div class="ak-details-stat-value">${fmtKr(s.skat)}</div></div>
+          <div class="ak-details-stat"><div class="ak-details-stat-label">Efter skat</div><div class="ak-details-stat-value ${(s.gevinst - s.skat) >= 0 ? 'pos' : 'neg'}">${fmtKr(s.gevinst - s.skat)}</div></div>
+        </div>
+        <div class="ak-details-facts">
+          ${fakta.map(([label, value]) => `<div class="ak-details-fact"><div class="ak-details-fact-label">${escapeHtml(label)}</div><div class="ak-details-fact-value">${escapeHtml(String(value))}</div></div>`).join('')}
+        </div>
+        <div class="ak-details-section-title">Registrerede køb</div>
+        <div class="ak-details-lots">${lotsHtml}</div>
+      </div>
+      <div class="ak-sale-details-footer">
+        <button class="ak-cancel-btn" id="saleDetailsCloseFooter">Luk</button>
+        <button class="ak-submit-btn" id="saleDetailsEdit" style="flex:0 0 auto;">Rediger salg</button>
+      </div>`;
+  }
+
+  function openSaleDetails(saleId){
+    const sale = findComputedSale(saleId);
+    const overlay = document.getElementById('saleDetailsOverlay');
+    const content = document.getElementById('saleDetailsContent');
+    if(!sale || !overlay || !content) return;
+    detailsSaleId = saleId;
+    content.innerHTML = renderSaleDetailsContent(sale);
+    overlay.classList.add('open');
+    overlay.setAttribute('aria-hidden', 'false');
+    document.getElementById('saleDetailsClose').addEventListener('click', closeSaleDetails);
+    document.getElementById('saleDetailsCloseFooter').addEventListener('click', closeSaleDetails);
+    document.getElementById('saleDetailsEdit').addEventListener('click', () => {
+      const id = detailsSaleId;
+      detailsSaleId = null;
+      openModal(id);
+    });
+    overlay.onclick = (e) => { if(e.target === overlay) closeSaleDetails(); };
+    document.getElementById('saleDetailsClose').focus();
+  }
+
+  function closeSaleDetails(){
+    const overlay = document.getElementById('saleDetailsOverlay');
+    if(overlay){
+      overlay.classList.remove('open');
+      overlay.setAttribute('aria-hidden', 'true');
+    }
+    detailsSaleId = null;
+  }
+
+  function wireSaleCards(root){
+    if(!root) return;
+    root.querySelectorAll('[data-sale-details]').forEach(card => {
+      card.addEventListener('click', (e) => {
+        if(e.target.closest('button, a, input, select')) return;
+        openSaleDetails(card.dataset.saleDetails);
+      });
+      card.addEventListener('keydown', (e) => {
+        if((e.key === 'Enter' || e.key === ' ') && !e.target.closest('button, a, input, select')){
+          e.preventDefault();
+          openSaleDetails(card.dataset.saleDetails);
+        }
+      });
+    });
   }
 
   function valutaOptionsHtml(){
@@ -2078,7 +2450,7 @@
       document.getElementById('navn').value = '';
       draftLogoUrl = '';
       document.getElementById('type').value = 'Aktie';
-      document.getElementById('maegler').value = 'Nordnet';
+      document.getElementById('maegler').value = brokerListe()[0] || NOT_SPECIFIED_BROKER;
       document.getElementById('aar').value = activeYear || new Date().getFullYear();
       document.getElementById('valuta').value = 'DKK';
       document.getElementById('salgDato').value = '';
@@ -2132,7 +2504,9 @@
   document.addEventListener('keydown', (e) => {
     if(e.key !== 'Escape') return;
     const modalOv = document.getElementById('modalOverlay');
+    const detailsOv = document.getElementById('saleDetailsOverlay');
     const settingsOv = document.getElementById('settingsOverlay');
+    if(detailsOv && detailsOv.classList.contains('open')){ closeSaleDetails(); return; }
     if(modalOv && modalOv.classList.contains('open')){ closeModal(); return; }
     if(settingsOv && settingsOv.classList.contains('open')){
       if(settingsView === 'info'){ settingsView = 'main'; renderSettingsBody(); }

@@ -21,3 +21,10 @@ Tickeropslag:
 - Skriv tickerkoden, fx AAPL, NOVO-B.CO eller WEBN.DE.
 - Navnet udfyldes automatisk, når opslagstjenesten kan finde tickeren.
 - Hvis et opslag fejler, kan navnet stadig skrives manuelt.
+
+
+Opdatering v3:
+- Ensartede gevinst/skat/efter skat-felter
+- Blød sidebar-animation
+- Klikbare salg med hurtige fakta
+- Forbedret mobilvisning
