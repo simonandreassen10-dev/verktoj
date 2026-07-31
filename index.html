@@ -36,6 +36,8 @@
     --primary-btn-hover: #263048;
     --primary-btn-text: #FFFFFF;
     --focus-ring: rgba(51,65,92,0.18);
+    --gold: #8A6A1E;
+    --soft-gold: #F3ECDA;
   }
   body.ak-dark {
     --bg: #10131A;
@@ -54,6 +56,8 @@
     --soft-navy: rgba(125,145,200,0.15);
     --shadow: rgba(0,0,0,0.28);
     --modal-shadow: rgba(0,0,0,0.52);
+    --gold: #E0B84B;
+    --soft-gold: rgba(224,184,75,0.15);
     --primary-btn: #8EA4E6;
     --primary-btn-hover: #A3B5F0;
     --primary-btn-text: #10131A;
@@ -235,6 +239,8 @@
   .ak-undo-btn-secondary { top: 74px; }
   @media (max-width: 780px) { .ak-undo-btn-secondary { top: 62px; } }
 
+  .ak-lots-area { max-height: min(250px, 36vh); overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; padding-right: 4px; margin-right: -4px; }
+
   .ak-toggle-switch {
     position: relative; width: 40px; height: 24px; border-radius: 12px; flex-shrink: 0;
     background: var(--border); border: none; cursor: pointer; padding: 0; transition: background 0.15s ease;
@@ -343,6 +349,8 @@
   .ak-install-status { display: inline-flex; align-items: center; gap: 6px; font-size: 10.5px; color: var(--green); font-weight: 700; }
   .ak-carry-note strong { color: var(--text); }
   .ak-fx-badge { display: inline-block; font-size: 10px; font-family: 'Inconsolata', monospace; background: var(--soft-navy); color: var(--navy); border-radius: 5px; padding: 1px 5px; font-weight: 700; }
+  .ak-ask-badge { display: inline-block; font-size: 10px; font-family: 'Inconsolata', monospace; background: var(--soft-gold); color: var(--gold); border-radius: 5px; padding: 1px 5px; font-weight: 700; }
+  .ak-ask-note { font-size: 11.5px; color: var(--text-faint); margin: 4px 0 8px; line-height: 1.4; }
   .ak-entry-top-right { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
   .ak-entry-chevron { color: var(--text-faint); font-size: 19px; line-height: 1; margin-left: 2px; opacity: 0.45; transform: translateX(-2px); transition: opacity 0.14s ease, transform 0.14s ease; }
   .ak-entry:hover .ak-entry-chevron, .ak-entry:focus-visible .ak-entry-chevron { opacity: 1; transform: translateX(0); color: var(--navy); }
@@ -646,6 +654,9 @@
   let editingId = null;
   let draftLots = [{ dato: '', antal: '', kurs: '', rate: '1', mode: 'dkk', totalDkk: '', komk: '0' }];
   let draftSalgMode = 'dkk';
+  let draftSalgBelobDkk = '';
+  let draftSalgskurs = '';
+  let draftSalgRate = '';
   let pendingDelete = null;
   let pendingDeleteTimer = null;
   let draftLogoUrl = '';
@@ -676,9 +687,15 @@
   const fmtValuta = (n, valuta) => (n < 0 ? '−' : '') + Math.abs(n).toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + valuta;
   const fmtPct = n => (n >= 0 ? '+' : '') + n.toLocaleString('da-DK', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
 
+  let saveQueue = Promise.resolve();
   function save(){
-    if(!currentUser || !state) return;
-    setDoc(stateDocRef(), state).catch(e => console.error('Kunne ikke gemme data', e));
+    if(!currentUser || !state) return Promise.resolve();
+    const snapshot = JSON.parse(JSON.stringify(state));
+    saveQueue = saveQueue
+      .catch(() => {})
+      .then(() => setDoc(stateDocRef(), snapshot))
+      .catch(e => console.error('Kunne ikke gemme data', e));
+    return saveQueue;
   }
 
   // Wraps a DOM update in a View Transition for a smooth crossfade instead of a jarring swap.
@@ -752,8 +769,73 @@
     return { kobsbelob, salgsbelob, gevinst: salgsbelob - kobsbelob, gak, totalKobtAntal: totalAntal };
   }
 
+  const AKTIE_PROGRESSIONSGRAENSER = {
+    2023: 58900,
+    2024: 61000,
+    2025: 67500,
+    2026: 79400
+  };
+
+  function progressionsgraenseInfo(year){
+    const y = parseInt(year, 10);
+    const kendteAar = Object.keys(AKTIE_PROGRESSIONSGRAENSER).map(Number).sort((a, b) => a - b);
+    const direkte = AKTIE_PROGRESSIONSGRAENSER[y];
+    let kildeAar = y;
+    let grundbeloeb = direkte;
+    if(!grundbeloeb){
+      const tidligere = kendteAar.filter(kendtAar => kendtAar <= y);
+      kildeAar = tidligere.length ? tidligere[tidligere.length - 1] : kendteAar[0];
+      grundbeloeb = AKTIE_PROGRESSIONSGRAENSER[kildeAar];
+    }
+    return {
+      year: y,
+      amount: state && state.gift ? grundbeloeb * 2 : grundbeloeb,
+      baseAmount: grundbeloeb,
+      sourceYear: kildeAar,
+      known: !!direkte
+    };
+  }
+
+  function skatVedProgression(indkomst, threshold){
+    const positiv = Math.max(0, indkomst);
+    return Math.min(positiv, threshold) * 0.27 + Math.max(0, positiv - threshold) * 0.42;
+  }
+
+  function skatVedFastSats(indkomst, sats){
+    return Math.max(0, indkomst) * sats;
+  }
+
+  function saleChronology(a, b){
+    const datoA = a.salgDato || `${a.aar || 0}-12-31`;
+    const datoB = b.salgDato || `${b.aar || 0}-12-31`;
+    return datoA.localeCompare(datoB) || String(a.id || '').localeCompare(String(b.id || ''));
+  }
+
+  function beregnDepotForloeb(salesPool, years, andenPerYear, satsFn){
+    const perYear = {};
+    let carry = 0;
+    years.forEach(year => {
+      const anden = andenPerYear[year] || 0;
+      const salesThisYear = salesPool.filter(s => s.aar === year).slice().sort(saleChronology);
+      let cum = anden - carry;
+      const startCum = cum;
+      let totalGevinst = 0, totalSkat = 0;
+      const computedSales = salesThisYear.map(s => {
+        const g = saleGevinst(s);
+        const from = cum, to = cum + g.gevinst;
+        const skat = satsFn(s, g, from, to, year);
+        cum = to; totalGevinst += g.gevinst; totalSkat += skat;
+        return Object.assign({}, s, g, { skat });
+      });
+      const endCum = cum;
+      const nextCarry = endCum < 0 ? -endCum : 0;
+      perYear[year] = { anden, carryIn: carry, sales: computedSales, totalGevinst, totalSkat, netto: totalGevinst - totalSkat, startCum, endCum, carryOut: nextCarry };
+      carry = nextCarry;
+    });
+    return perYear;
+  }
+
   function computeAll(excludeId){
-    const threshold = state.gift ? 158800 : 79400;
     const salesPool = excludeId ? state.sales.filter(s => s.id !== excludeId) : state.sales;
     const currentYear = new Date().getFullYear();
     const yearSet = new Set(salesPool.map(s => s.aar));
@@ -766,34 +848,21 @@
     const years = [];
     for(let y = rangeStart; y <= rangeEnd; y++) years.push(y);
 
-    const perYear = {};
-    let carry = 0;
-    years.forEach(year => {
-      const anden = state.andenPerYear[year] || 0;
-      const salesThisYear = salesPool.filter(s => s.aar === year);
-      let cum = anden - carry;
-      const startCum = cum;
-      let totalGevinst = 0, totalSkat = 0;
-      const computedSales = salesThisYear.map(s => {
-        const g = saleGevinst(s);
-        let skat = 0;
-        const from = cum, to = cum + g.gevinst;
-        if(s.satsmode === '27') skat = Math.max(0, g.gevinst) * 0.27;
-        else if(s.satsmode === '42') skat = Math.max(0, g.gevinst) * 0.42;
-        else {
-          const lowAmt = Math.max(0, Math.min(to, threshold) - Math.max(from, 0));
-          const highAmt = Math.max(0, to - Math.max(from, threshold));
-          skat = lowAmt * 0.27 + highAmt * 0.42;
-        }
-        cum = to; totalGevinst += g.gevinst; totalSkat += skat;
-        return Object.assign({}, s, g, { skat });
-      });
-      const endCum = cum;
-      const nextCarry = endCum < 0 ? -endCum : 0;
-      perYear[year] = { anden, carryIn: carry, sales: computedSales, totalGevinst, totalSkat, netto: totalGevinst - totalSkat, startCum, endCum, threshold, carryOut: nextCarry };
-      carry = nextCarry;
+    const fritSales = salesPool.filter(s => s.satsmode !== 'ask');
+    const askSales = salesPool.filter(s => s.satsmode === 'ask');
+
+    const perYear = beregnDepotForloeb(fritSales, years, state.andenPerYear, (s, g, from, to, year) => {
+      if(s.satsmode === '27') return skatVedFastSats(to, 0.27) - skatVedFastSats(from, 0.27);
+      if(s.satsmode === '42') return skatVedFastSats(to, 0.42) - skatVedFastSats(from, 0.42);
+      const threshold = progressionsgraenseInfo(year).amount;
+      return skatVedProgression(to, threshold) - skatVedProgression(from, threshold);
     });
-    return { years, perYear, threshold };
+
+    const askPerYear = beregnDepotForloeb(askSales, years, {}, (s, g, from, to) => {
+      return skatVedFastSats(to, 0.17) - skatVedFastSats(from, 0.17);
+    });
+
+    return { years, perYear, askPerYear };
   }
 
   function renderLedger(yearData, year, threshold){
@@ -830,7 +899,7 @@
         ${headerHtml}
         ${rowsHtml}
         <div class="ak-ledger-row"><span class="k">= Skattepligtig aktieindkomst</span><span class="v">${fmtKr(skattepligtig)}</span></div>
-        <div class="ak-ledger-row total"><span class="k">Skat i alt — dette skal betales i skat</span><span class="v">${fmtKr(yearData.totalSkat)}</span></div>
+        <div class="ak-ledger-row total"><span class="k">Beregnet skatteeffekt af registrerede salg</span><span class="v">${fmtKr(yearData.totalSkat)}</span></div>
         <div class="ak-ledger-row total"><span class="k">Efter skat</span><span class="v" style="color:var(--green);">${fmtKr(yearData.netto)}</span></div>
       </div>
     `;
@@ -965,8 +1034,8 @@
 
           <div class="ak-settings-row" style="margin-top:10px;">
             <div class="ak-settings-row-text">
-              <div class="ak-settings-row-title">Gift/samlevende</div>
-              <div class="ak-settings-row-sub">Dobbelt bundfradrag i progressionsgrænsen (158.800 kr. i stedet for 79.400 kr.)</div>
+              <div class="ak-settings-row-title">Gift</div>
+              <div class="ak-settings-row-sub">Dobbelt progressionsgrænse, når du er gift og bor sammen med din ægtefælle ved årets udløb (2026: 158.800 kr. i stedet for 79.400 kr.)</div>
             </div>
             <button class="ak-toggle-switch ${state.gift ? 'til' : ''}" id="giftToggle" role="switch" aria-checked="${state.gift}"></button>
           </div>
@@ -1011,15 +1080,15 @@
       <div class="ak-info-block">
         <div class="ak-info-item">
           <div class="ak-info-title">Almindeligt aktiedepot — 27% / 42%</div>
-          <div class="ak-info-text">Gevinster og udbytter beskattes som <em>aktieindkomst</em>, og kun når du sælger (realisationsbeskatning). I 2026: 27% af de første 79.400 kr. (158.800 kr. for gifte/samlevende), 42% af resten. Realiserede tab trækkes automatisk fra i årets gevinster og føres videre til næste år, hvis der er mere tab end gevinst.</div>
+          <div class="ak-info-text">Realiserede gevinster ved salg og udbetalte udbytter indgår som <em>aktieindkomst</em>. I 2026 er progressionsgrænsen 79.400 kr. for enlige og 158.800 kr. for ægtefæller, der bor sammen ved årets udløb (2025: 67.500 kr. / 135.000 kr.). Beløb op til grænsen beskattes med 27%, og resten med 42%. Realiserede tab kan modregnes efter de gældende regler og kan i relevante tilfælde fremføres.</div>
         </div>
         <div class="ak-info-item">
           <div class="ak-info-title">Aktiesparekonto — fast 17%</div>
-          <div class="ak-info-text">En særlig konto med en lavere, fast skattesats på 17% af afkastet — men til gengæld <em>lagerbeskatning</em>: du beskattes af værdistigningen hvert år, uanset om du har solgt eller ej. I 2026 er indskudsloftet 174.200 kr. Dette værktøj regner ikke på aktiesparekonto-handler, kun almindelige depoter.</div>
+          <div class="ak-info-text">Afkastet beskattes særskilt med 17% efter <em>lagerprincippet</em>, og banken opgør normalt skatten på kontoen. Du kan markere et salg som ASK i værktøjet, så det holdes adskilt fra dit almindelige depot. Visningen pr. salg er dog kun et vejledende overblik, fordi den reelle ASK-skat beregnes ud fra hele kontoens værdi og bevægelser gennem året.</div>
         </div>
         <div class="ak-info-item">
           <div class="ak-info-title">ETF'er og fonde</div>
-          <div class="ak-info-text">Står ETF'en på Skattestyrelsens positivliste, beskattes den som aktieindkomst (som ovenfor). Står den ikke på listen, beskattes den i stedet som kapitalindkomst — typisk med en anden og ofte højere sats, som afhænger af din øvrige indkomst.</div>
+          <div class="ak-info-text">Beskatningen afhænger af værdipapirets type. Mange ETF'er og investeringsselskaber beskattes efter lagerprincippet. Positivlisten har betydning for, om et aktiebaseret investeringsselskab beskattes som aktieindkomst eller kapitalindkomst. Kontrollér altid det konkrete værdipapir hos Skattestyrelsen.</div>
         </div>
         <div class="ak-info-item">
           <div class="ak-info-text" style="font-style:italic;">Dette er generel information, ikke skatterådgivning — sats­er og grænser ændrer sig år for år. Tjek altid <span style="color:var(--navy);">skat.dk</span> for de gældende regler.</div>
@@ -1155,8 +1224,9 @@
     const tickerBadge = s.ticker ? `<span class="ak-ticker-badge">${escapeHtml(s.ticker)}</span>` : '';
     const brokerBadge = `<span class="ak-broker-badge">${escapeHtml(s.maegler || 'Ikke angivet')}</span>`;
     const fxBadge = s.valuta !== 'DKK' ? `<span class="ak-fx-badge">${escapeHtml(s.valuta)}</span>` : '';
+    const askBadge = s.satsmode === 'ask' ? `<span class="ak-ask-badge">ASK</span>` : '';
     const yearBadge = showYear ? `<span class="ak-fx-badge">${s.aar}</span>` : '';
-    return `<div class="ak-entry-left">${companyLogoHtml(s, isGain)}<div class="ak-entry-identity"><span class="ak-entry-name">${escapeHtml(displayName)}</span><span class="ak-entry-badges">${tickerBadge}${brokerBadge}${fxBadge}${yearBadge}</span></div></div>`;
+    return `<div class="ak-entry-left">${companyLogoHtml(s, isGain)}<div class="ak-entry-identity"><span class="ak-entry-name">${escapeHtml(displayName)}</span><span class="ak-entry-badges">${tickerBadge}${brokerBadge}${askBadge}${fxBadge}${yearBadge}</span></div></div>`;
   }
 
   function formatDatoDa(isoDato){
@@ -1183,7 +1253,7 @@
     const showYear = !!options.showYear;
     const searchMode = options.mode === 'search';
     const satsMode = s.satsmode || 'auto';
-    const satsLabel = satsMode === 'auto' ? 'auto' : satsMode + '%';
+    const satsLabel = satsMode === 'auto' ? 'auto' : satsMode === 'ask' ? 'ASK 17%' : satsMode + '%';
     const satsMeta = options.showSats ? ` · sats ${escapeHtml(satsLabel)}` : '';
     const editAttr = searchMode ? 'data-sog-edit' : 'data-edit';
     const delAttr = searchMode ? 'data-sog-del' : 'data-del';
@@ -1546,7 +1616,7 @@
 
   // ============ AKTIESALG VIEW ============
   function renderAktiesalgContent(){
-    const { years: dataYears, perYear, threshold } = computeAll();
+    const { years: dataYears, perYear, askPerYear } = computeAll();
     const currentYear = new Date().getFullYear();
     const allCandidates = dataYears.concat(state.extraYears || []).concat([currentYear]);
     const rangeStart = Math.min(currentYear - 3, ...allCandidates);
@@ -1555,9 +1625,15 @@
     for(let y = rangeStart; y <= rangeEnd; y++) years.push(y);
     if(activeYear === null || !years.includes(activeYear)) activeYear = currentYear;
 
+    const thresholdInfo = progressionsgraenseInfo(activeYear);
+    const threshold = thresholdInfo.amount;
     const yearData = perYear[activeYear] || { anden: 0, sales: [], totalGevinst: 0, totalSkat: 0, netto: 0, endCum: 0, carryOut: 0, carryIn: 0 };
     const isGain = yearData.totalGevinst >= 0;
     const andenVal = state.andenPerYear[activeYear] || 0;
+
+    const askYearData = askPerYear[activeYear] || { sales: [], totalGevinst: 0, totalSkat: 0, netto: 0, endCum: 0, carryOut: 0, carryIn: 0 };
+    const harAskAktivitet = Object.values(askPerYear).some(y => y.sales.length > 0);
+    const askIsGain = askYearData.totalGevinst >= 0;
 
     const skattepligtigt = Math.max(0, yearData.endCum);
     const scaleMax = Math.max(threshold * 1.6, skattepligtigt * 1.15, threshold + 1);
@@ -1591,7 +1667,7 @@
 
           <div class="ak-summary">
             <div class="ak-card"><div class="ak-card-label">Gevinst/tab i alt</div><div class="ak-card-value ${isGain ? 'pos' : 'neg'}">${fmtKr(yearData.totalGevinst)}</div></div>
-            <div class="ak-card"><div class="ak-card-label">Skat i alt</div><div class="ak-card-value">${fmtKr(yearData.totalSkat)}</div></div>
+            <div class="ak-card"><div class="ak-card-label">Beregnet skat på salg</div><div class="ak-card-value">${fmtKr(yearData.totalSkat)}</div></div>
             <div class="ak-card"><div class="ak-card-label">Efter skat</div><div class="ak-card-value">${fmtKr(yearData.netto)}</div></div>
             <div class="ak-card"><div class="ak-card-label">Tab til modregning</div><div class="ak-card-value ${yearData.carryOut > 0 ? 'neg' : ''}">${fmtKr(yearData.carryOut)}</div></div>
           </div>
@@ -1613,7 +1689,7 @@
             <div class="ak-bracket-scale">
               <span class="ak-bracket-scale-mark" style="left:${thresholdMarkPct}%;">${fmtKrHel(threshold)}<br><span class="ak-bracket-scale-sub">grænse for 27%/42%</span></span>
             </div>
-            <div class="ak-bracket-note">${bracketStatus} Bundfradrag ${activeYear}: ${fmtKrHel(threshold)} (${state.gift ? 'gift/samlevende' : 'enlig'}).</div>
+            <div class="ak-bracket-note">${bracketStatus} Progressionsgrænse ${activeYear}: ${fmtKrHel(threshold)} (${state.gift ? 'gift og samlevende med ægtefælle' : 'enlig'}).${thresholdInfo.known ? '' : ` Foreløbig visning: grænsen for ${activeYear} er ikke indbygget endnu, så ${thresholdInfo.sourceYear}-grænsen bruges.`}</div>
           </div>
 
           <div class="ak-anden-row" style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
@@ -1637,6 +1713,25 @@
             ${yearData.sales.length === 0 ? `<div class="ak-empty-panel">Ingen salg registreret for ${activeYear} endnu. Klik "+ Tilføj salg" for at komme i gang.</div>` : yearData.sales.map(s => saleEntryHtml(s, { showYear: false, mode: 'year', showSats: true })).join('')}
           </div>
         </div>
+
+        ${harAskAktivitet ? `
+        <div class="ak-panel">
+          <div class="ak-list-header">
+            <div class="ak-list-title">Aktiesparekonto · ${activeYear} <span class="ak-ask-badge" style="margin-left:6px;">ASK</span></div>
+          </div>
+          <div class="ak-summary">
+            <div class="ak-card"><div class="ak-card-label">Gevinst/tab i alt</div><div class="ak-card-value ${askIsGain ? 'pos' : 'neg'}">${fmtKr(askYearData.totalGevinst)}</div></div>
+            <div class="ak-card"><div class="ak-card-label">Skat i alt (17%)</div><div class="ak-card-value">${fmtKr(askYearData.totalSkat)}</div></div>
+            <div class="ak-card"><div class="ak-card-label">Efter skat</div><div class="ak-card-value">${fmtKr(askYearData.netto)}</div></div>
+            <div class="ak-card"><div class="ak-card-label">Tab til modregning</div><div class="ak-card-value ${askYearData.carryOut > 0 ? 'neg' : ''}">${fmtKr(askYearData.carryOut)}</div></div>
+          </div>
+          ${askYearData.carryOut > 0 ? `<div class="ak-carry-note"><strong>${fmtKr(askYearData.carryOut)}</strong> i tab står til modregning i fremtidige ASK-gevinster.</div>` : ''}
+          <div class="ak-ask-note" style="margin-top:10px;">Isoleret fra dit almindelige depot ovenfor — egen 17%-sats og egen fremførsel af tab. Bemærk: reelt beskattes aktiesparekontoen efter lagerprincippet (værdistigning hen over året), ikke pr. salg — dette er derfor et forenklet, vejledende overblik pr. salg, ikke en erstatning for din årsopgørelse.</div>
+          <div class="ak-entry-list" id="askSalesList" style="margin-top:14px;">
+            ${askYearData.sales.length === 0 ? `<div class="ak-empty-panel">Ingen ASK-salg registreret for ${activeYear}.</div>` : askYearData.sales.map(s => saleEntryHtml(s, { showYear: false, mode: 'year', showSats: false })).join('')}
+          </div>
+        </div>
+        ` : ''}
 
         <div class="ak-footnote">Se skattesatser og regler under ⚙️ Indstillinger → Om skattesatserne</div>
       </div>
@@ -1666,6 +1761,7 @@
     document.querySelectorAll('[data-edit]').forEach(btn => btn.addEventListener('click', (e) => { e.stopPropagation(); openModal(btn.dataset.edit); }));
     document.querySelectorAll('[data-del]').forEach(btn => btn.addEventListener('click', (e) => { e.stopPropagation(); deleteSale(btn.dataset.del); }));
     wireSaleCards(document.getElementById('salesList'));
+    wireSaleCards(document.getElementById('askSalesList'));
     document.getElementById('openAddBtn').addEventListener('click', () => openModal(null));
   }
 
@@ -1815,9 +1911,10 @@
   let sogSort = 'nyeste';
 
   function getAlleSalgBeregnet(){
-    const { perYear } = computeAll();
+    const { perYear, askPerYear } = computeAll();
     let alle = [];
     Object.keys(perYear).forEach(y => { alle = alle.concat(perYear[y].sales); });
+    Object.keys(askPerYear).forEach(y => { alle = alle.concat(askPerYear[y].sales); });
     return alle;
   }
 
@@ -1998,7 +2095,7 @@
               </div>
 
               <div class="ak-section-label">Køb (én eller flere omgange)</div>
-              <div id="lotsArea"></div>
+              <div id="lotsArea" class="ak-lots-area"></div>
               <button type="button" class="ak-ghostbtn" id="addLotBtn">+ Tilføj endnu et køb</button>
 
               <div class="ak-section-label">Salg</div>
@@ -2014,7 +2111,8 @@
               <div class="ak-field-row">
                 <div class="ak-field"><label for="salgsomk">Salgsomkostninger (DKK)</label><input type="number" id="salgsomk" value="0" min="0" step="any"></div>
                 <div class="ak-field"><label for="satsmode">Skattesats</label>
-                  <select id="satsmode"><option value="auto">Automatisk (progression)</option><option value="27">Fast 27%</option><option value="42">Fast 42%</option></select>
+                  <select id="satsmode"><option value="auto">Automatisk (progression)</option><option value="27">Fast 27%</option><option value="42">Fast 42%</option><option value="ask">Aktiesparekonto (fast 17%)</option></select>
+                  <div class="ak-ask-note" id="askNote" style="display:none;">Aktiesparekontoen beskattes isoleret fra dit almindelige depot — indgår ikke i bundfradrag eller fremført tab ovenfor, og har sin egen opgørelse og fremførsel.</div>
                 </div>
               </div>
               <div class="ak-warn-note" id="warnNote" style="display:none;"></div>
@@ -2074,7 +2172,7 @@
     const pct = s.kobsbelob !== 0 ? (s.gevinst / s.kobsbelob) * 100 : 0;
     const pctStr = (pct >= 0 ? '+' : '') + pct.toLocaleString('da-DK', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
     const satsMode = s.satsmode || 'auto';
-    const satsLabel = satsMode === 'auto' ? 'Automatisk progression' : `${satsMode}% fast sats`;
+    const satsLabel = satsMode === 'auto' ? 'Automatisk progression' : satsMode === 'ask' ? 'Aktiesparekonto, fast 17%' : `${satsMode}% fast sats`;
     const lots = s.buys || [];
     const lotsHtml = lots.length ? lots.map((lot, index) => `
       <div class="ak-details-lot">
@@ -2237,7 +2335,7 @@
           <button type="button" class="ak-mode-btn lot-mode-btn ${lot.mode !== 'dkk' ? 'active' : ''}" data-i="${i}" data-mode="kurs">Kurs + valutakurs</button>
         </div>
         ${lot.mode === 'dkk' ? `
-          <div class="ak-field"><label>Beløb i kontoens valuta (DKK)</label><input type="number" class="lot-totaldkk" data-i="${i}" value="${lot.totalDkk}" min="0" step="any" placeholder="fx 2.292,79"></div>
+          <div class="ak-field"><label>Beløb i DKK</label><input type="number" class="lot-totaldkk" data-i="${i}" value="${lot.totalDkk}" min="0" step="any" placeholder="fx 2.292,79"></div>
         ` : `
           <div class="ak-field-row">
             <div class="ak-field"><label>Kurs/stk. (${v})</label><input type="number" class="lot-kurs" data-i="${i}" value="${lot.kurs}" min="0" step="any" placeholder="150,00"></div>
@@ -2259,6 +2357,15 @@
     updatePreview();
   }
 
+  function syncDraftSalgAmountFromDom(){
+    const dkkEl = document.getElementById('salgBelobDkk');
+    const kursEl = document.getElementById('salgskurs');
+    const rateEl = document.getElementById('salgRate');
+    if(dkkEl) draftSalgBelobDkk = dkkEl.value;
+    if(kursEl) draftSalgskurs = kursEl.value;
+    if(rateEl) draftSalgRate = rateEl.value;
+  }
+
   function renderSalgAmountArea(){
     const area = document.getElementById('salgAmountArea');
     if(!area) return;
@@ -2268,18 +2375,18 @@
     document.getElementById('salgModeKursBtn').classList.toggle('active', draftSalgMode !== 'dkk');
 
     if(draftSalgMode === 'dkk'){
-      area.innerHTML = `<div class="ak-field"><label>Beløb i kontoens valuta (DKK)</label><input type="number" id="salgBelobDkk" placeholder="fx 2.807,00" min="0" step="any"></div>`;
-      document.getElementById('salgBelobDkk').addEventListener('input', updatePreview);
+      area.innerHTML = `<div class="ak-field"><label>Beløb i DKK</label><input type="number" id="salgBelobDkk" value="${escapeHtml(String(draftSalgBelobDkk || ''))}" placeholder="fx 2.807,00" min="0" step="any"></div>`;
+      document.getElementById('salgBelobDkk').addEventListener('input', (e) => { draftSalgBelobDkk = e.target.value; updatePreview(); });
     } else {
       area.innerHTML = `
         <div class="ak-field-row">
-          <div class="ak-field"><label for="salgskurs">Salgskurs/stk.</label><input type="number" id="salgskurs" placeholder="178,50" min="0" step="any"></div>
-          <div class="ak-field salgFxField" style="display:${showFx ? '' : 'none'};"><label for="salgRate">Valutakurs → DKK</label><input type="number" id="salgRate" placeholder="auto" min="0" step="any"></div>
+          <div class="ak-field"><label for="salgskurs">Salgskurs/stk. (${v})</label><input type="number" id="salgskurs" value="${escapeHtml(String(draftSalgskurs || ''))}" placeholder="178,50" min="0" step="any"></div>
+          <div class="ak-field salgFxField" style="display:${showFx ? '' : 'none'};"><label for="salgRate">Valutakurs → DKK</label><input type="number" id="salgRate" value="${escapeHtml(String(draftSalgRate || ''))}" placeholder="auto" min="0" step="any"></div>
         </div>
         <div class="ak-fx-hint" id="salgFxHint"></div>
       `;
-      document.getElementById('salgskurs').addEventListener('input', updatePreview);
-      document.getElementById('salgRate').addEventListener('input', updatePreview);
+      document.getElementById('salgskurs').addEventListener('input', (e) => { draftSalgskurs = e.target.value; updatePreview(); });
+      document.getElementById('salgRate').addEventListener('input', (e) => { draftSalgRate = e.target.value; updatePreview(); });
     }
     updatePreview();
   }
@@ -2318,6 +2425,7 @@
   }
 
   function buildDraftSale(){
+    syncDraftSalgAmountFromDom();
     const valuta = currentValuta();
     const salgEl = document.getElementById('salgskurs');
     const salgRateEl = document.getElementById('salgRate');
@@ -2363,21 +2471,28 @@
     }
 
     const g = saleGevinst(draft);
-    const { perYear, threshold } = computeAll(editingId);
-    const ctx = perYear[draft.aar] || { endCum: (state.andenPerYear[draft.aar] || 0) };
+    const { perYear, askPerYear } = computeAll(editingId);
+    const threshold = progressionsgraenseInfo(draft.aar).amount;
+    const isAsk = draft.satsmode === 'ask';
+    const ctx = isAsk
+      ? (askPerYear[draft.aar] || { endCum: 0 })
+      : (perYear[draft.aar] || { endCum: (state.andenPerYear[draft.aar] || 0) });
     const cumStart = ctx.endCum;
     let skat = 0;
-    if(draft.satsmode === '27') skat = Math.max(0, g.gevinst) * 0.27;
-    else if(draft.satsmode === '42') skat = Math.max(0, g.gevinst) * 0.42;
-    else {
-      const from = cumStart, to = cumStart + g.gevinst;
-      const lowAmt = Math.max(0, Math.min(to, threshold) - Math.max(from, 0));
-      const highAmt = Math.max(0, to - Math.max(from, threshold));
-      skat = lowAmt * 0.27 + highAmt * 0.42;
+    const from = cumStart, to = cumStart + g.gevinst;
+    if(isAsk){
+      skat = skatVedFastSats(to, 0.17) - skatVedFastSats(from, 0.17);
+    } else if(draft.satsmode === '27'){
+      skat = skatVedFastSats(to, 0.27) - skatVedFastSats(from, 0.27);
+    } else if(draft.satsmode === '42'){
+      skat = skatVedFastSats(to, 0.42) - skatVedFastSats(from, 0.42);
+    } else {
+      skat = skatVedProgression(to, threshold) - skatVedProgression(from, threshold);
     }
     const netto = g.gevinst - skat;
     const isGain = g.gevinst >= 0;
     const pct = g.kobsbelob !== 0 ? (g.gevinst / g.kobsbelob) * 100 : 0;
+    const satsLabelPreview = draft.satsmode === 'auto' ? 'auto' : isAsk ? 'ASK 17%' : draft.satsmode + '%';
 
     let warn = '';
     if(draft.antalSolgt > totalAntal){
@@ -2393,10 +2508,13 @@
       <div class="ak-preview-row"><span class="k">Gennemsnitskurs (GAK)</span><span class="v">${fmtKr(gak)}</span></div>
       <div class="ak-preview-row"><span class="k">Købsbeløb</span><span class="v">${fmtKr(g.kobsbelob)}</span></div>
       <div class="ak-preview-row"><span class="k">Salgsbeløb</span><span class="v">${fmtKr(g.salgsbelob)}</span></div>
-      <div class="ak-preview-row"><span class="k">Skat (${draft.satsmode === 'auto' ? 'auto' : draft.satsmode + '%'})</span><span class="v">${fmtKr(skat)}</span></div>
+      <div class="ak-preview-row"><span class="k">Skat (${satsLabelPreview})</span><span class="v">${fmtKr(skat)}</span></div>
       <div class="ak-preview-row total"><span class="k">Efter skat</span><span class="v">${fmtKr(netto)}</span></div>
       ${warn}
     `;
+
+    const askNoteEl = document.getElementById('askNote');
+    if(askNoteEl) askNoteEl.style.display = isAsk ? 'block' : 'none';
   }
 
   function wireModalInputs(){
@@ -2420,8 +2538,8 @@
       document.getElementById(id).addEventListener('input', updatePreview);
       document.getElementById(id).addEventListener('change', updatePreview);
     });
-    document.getElementById('salgModeDkkBtn').addEventListener('click', () => { draftSalgMode = 'dkk'; renderSalgAmountArea(); });
-    document.getElementById('salgModeKursBtn').addEventListener('click', () => { draftSalgMode = 'kurs'; renderSalgAmountArea(); });
+    document.getElementById('salgModeDkkBtn').addEventListener('click', () => { syncDraftSalgAmountFromDom(); draftSalgMode = 'dkk'; renderSalgAmountArea(); });
+    document.getElementById('salgModeKursBtn').addEventListener('click', () => { syncDraftSalgAmountFromDom(); draftSalgMode = 'kurs'; renderSalgAmountArea(); });
     function syncAarFraSalgDato(){
       const datoVal = document.getElementById('salgDato').value;
       if(datoVal && datoVal.length === 10){
@@ -2442,7 +2560,8 @@
       hintEl.textContent = 'Henter valutakurs …'; hintEl.className = 'ak-fx-hint';
       const rate = await fetchRate(dato, v);
       if(rate){
-        document.getElementById('salgRate').value = rate.toFixed(4);
+        draftSalgRate = rate.toFixed(4);
+        document.getElementById('salgRate').value = draftSalgRate;
         hintEl.textContent = `Hentet: 1 ${v} = ${rate.toFixed(4)} DKK (${dato})`; hintEl.className = 'ak-fx-hint ok';
       } else {
         hintEl.textContent = 'Kunne ikke hente automatisk — indtast kursen manuelt.'; hintEl.className = 'ak-fx-hint err';
@@ -2471,7 +2590,7 @@
       document.getElementById('ticker').value = s.ticker || '';
       document.getElementById('navn').value = s.navn || '';
       draftLogoUrl = s.logoUrl || tickerLogoUrl(s.ticker);
-      document.getElementById('type').value = s.type;
+      document.getElementById('type').value = s.type || 'Aktie';
       const maeglerEl = document.getElementById('maegler');
       const maeglerNavn = s.maegler || 'Ikke angivet';
       if(!Array.from(maeglerEl.options).some(o => o.value === maeglerNavn)){
@@ -2480,13 +2599,17 @@
       }
       maeglerEl.value = maeglerNavn;
       document.getElementById('aar').value = s.aar;
-      document.getElementById('valuta').value = s.valuta;
+      document.getElementById('valuta').value = s.valuta || 'DKK';
       document.getElementById('salgDato').value = s.salgDato || '';
       document.getElementById('antalSolgt').value = s.antalSolgt;
       document.getElementById('salgsomk').value = s.salgsomk;
-      document.getElementById('satsmode').value = s.satsmode;
-      draftLots = s.buys.map(b => ({ dato: b.dato, antal: b.antal, kurs: b.kurs, rate: String(b.rate), mode: b.mode || 'kurs', totalDkk: b.totalDkk != null ? String(b.totalDkk) : '', komk: b.komk != null ? String(b.komk) : '0' }));
+      document.getElementById('satsmode').value = s.satsmode || 'auto';
+      draftLots = (s.buys || []).map(b => ({ dato: b.dato || '', antal: b.antal ?? '', kurs: b.kurs ?? '', rate: String(b.rate ?? 1), mode: b.mode || 'kurs', totalDkk: b.totalDkk != null ? String(b.totalDkk) : '', komk: b.komk != null ? String(b.komk) : '0' }));
+      if(draftLots.length === 0) draftLots = [{ dato: '', antal: '', kurs: '', rate: '1', mode: 'dkk', totalDkk: '', komk: '0' }];
       draftSalgMode = s.salgMode || 'kurs';
+      draftSalgBelobDkk = s.salgBelobDkk != null ? String(s.salgBelobDkk) : '';
+      draftSalgskurs = s.salgskurs != null ? String(s.salgskurs) : '';
+      draftSalgRate = s.valuta === 'DKK' ? '' : (s.salgRate != null ? String(s.salgRate) : '');
       wireModalInputs();
       if(s.ticker) setTickerStatus(`Ticker: ${s.ticker}${s.navn ? ' · ' + s.navn : ''}`, 'ok');
       if(draftSalgMode === 'dkk'){
@@ -2509,6 +2632,9 @@
       document.getElementById('satsmode').value = 'auto';
       draftLots = [{ dato: '', antal: '', kurs: '', rate: '1', mode: 'dkk', totalDkk: '', komk: '0' }];
       draftSalgMode = 'dkk';
+      draftSalgBelobDkk = '';
+      draftSalgskurs = '';
+      draftSalgRate = '';
       wireModalInputs();
     }
     document.getElementById('modalOverlay').classList.add('open');
