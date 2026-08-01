@@ -36,8 +36,8 @@
     --primary-btn-hover: #263048;
     --primary-btn-text: #FFFFFF;
     --focus-ring: rgba(51,65,92,0.18);
-    --gold: #8A6A1E;
-    --soft-gold: #F3ECDA;
+    --gold: #6F6A86;
+    --soft-gold: #EFEEF3;
   }
   body.ak-dark {
     --bg: #10131A;
@@ -56,14 +56,15 @@
     --soft-navy: rgba(125,145,200,0.15);
     --shadow: rgba(0,0,0,0.28);
     --modal-shadow: rgba(0,0,0,0.52);
-    --gold: #E0B84B;
-    --soft-gold: rgba(224,184,75,0.15);
+    --gold: #AAA3BC;
+    --soft-gold: rgba(170,163,188,0.10);
     --primary-btn: #8EA4E6;
     --primary-btn-hover: #A3B5F0;
     --primary-btn-text: #10131A;
     --focus-ring: rgba(142,164,230,0.28);
   }
   * { box-sizing: border-box; }
+  html { scrollbar-gutter: stable; }
   body {
     margin: 0;
     padding: 0;
@@ -73,17 +74,21 @@
     min-height: 100vh;
     transition: background 0.18s ease, color 0.18s ease;
   }
+  body.ak-dialog-open {
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
   .ak-root { max-width: 860px; margin: 0 auto; }
   .ak-view-header { margin-bottom: 20px; }
   .ak-title { font-size: 22px; font-weight: 800; letter-spacing: -0.01em; }
   .ak-subtitle { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
 
-  .dash-shell { display: flex; min-height: 100vh; }
+  .dash-shell { display: block; min-height: 100vh; }
   .dash-sidebar {
-    width: 232px; flex-shrink: 0; background: var(--card); border-right: 1px solid var(--border);
+    width: 232px; background: var(--card); border-right: 1px solid var(--border);
     display: flex; flex-direction: column; padding: 22px 16px;
     transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1), padding 0.3s cubic-bezier(0.16, 1, 0.3, 1), background 0.18s ease, border-color 0.18s ease;
-    position: sticky; top: 0; align-self: flex-start; height: 100vh;
+    position: fixed; inset: 0 auto 0 0; height: 100dvh; z-index: 40;
   }
   .dash-sidebar.collapsed { width: 68px; padding: 22px 10px; }
   .dash-sidebar-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px; min-height: 28px; transition: justify-content 0.2s ease; }
@@ -128,7 +133,11 @@
   .dash-sidebar.collapsed .ak-logout-label { max-width: 0; opacity: 0; }
   .dash-sidebar-actions .ak-settings-btn,
   .dash-sidebar-actions .ak-logout-btn { height: 38px; flex: 1 1 0; width: auto; min-width: 0; padding: 0; display: flex; align-items: center; justify-content: center; box-shadow: none; }
-  .dash-content { flex: 1; min-width: 0; padding: 28px 26px 90px; }
+  .dash-content {
+    min-width: 0; margin-left: 232px; padding: 28px 26px 90px;
+    transition: margin-left 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .dash-sidebar.collapsed + .dash-content { margin-left: 68px; }
 
   /* dash-shell mobile styles moved to end of stylesheet to win the cascade */
   .ak-gift-toggle {
@@ -214,6 +223,7 @@
   .ak-spinner { width: 26px; height: 26px; border-radius: 50%; border: 3px solid var(--border); border-top-color: var(--navy); animation: ak-spin 0.7s linear infinite; }
   @keyframes ak-spin { to { transform: rotate(360deg); } }
   .ak-modal.settings-size { max-width: 480px; }
+  #settingsBody { min-height: 0; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; }
   .ak-settings-row {
     display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
     background: var(--entry-bg); border: 1px solid var(--border); border-radius: 10px;
@@ -244,44 +254,62 @@
 
   .ak-fx-hint.manual { color: var(--text-muted); }
 
-  /* Konto-skift: holder almindeligt depot og ASK adskilt uden lange paneler under hinanden */
-  .ak-account-toolbar { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
-  .ak-account-toolbar-main { flex: 1; min-width: 0; }
-  .ak-account-toolbar-label { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-faint); font-weight: 700; margin-bottom: 7px; }
-  .ak-account-switch { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-  .ak-account-tab {
-    display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; text-align: left;
-    border: 1px solid var(--border); border-radius: 10px; background: var(--entry-bg); color: var(--text-muted);
-    padding: 10px 12px; font-family: 'Inter', sans-serif; cursor: pointer; transition: all 0.14s ease;
+  /* Samlet årsoversigt: ASK markeres diskret, mens skatten stadig beregnes separat. */
+  .ak-year-toolbar {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    padding: 12px 14px;
   }
-  .ak-account-tab:hover { border-color: var(--navy); background: var(--hover); color: var(--text); transform: translateY(-1px); }
-  .ak-account-tab.active { border-color: var(--navy); background: var(--soft-navy); color: var(--navy); box-shadow: 0 0 0 2px var(--focus-ring); }
-  .ak-account-tab.ask.active { border-color: var(--gold); background: var(--soft-gold); color: var(--gold); box-shadow: none; }
-  .ak-account-tab-title { font-size: 13px; font-weight: 800; white-space: nowrap; }
-  .ak-account-tab-sub { font-size: 10.5px; color: var(--text-faint); line-height: 1.35; white-space: normal; }
-  .ak-account-tab.active .ak-account-tab-sub { color: currentColor; opacity: 0.78; }
-  .ak-account-year {
-    flex: 0 0 132px; align-self: stretch; display: flex; flex-direction: column;
-    justify-content: center; align-items: center; text-align: center;
-    padding: 9px 10px; background: var(--entry-bg); border: 1px solid var(--border); border-radius: 10px;
+  .ak-year-toolbar-copy { min-width: 0; }
+  .ak-year-toolbar-title { font-size: 13.5px; font-weight: 800; color: var(--text); }
+  .ak-year-toolbar-sub { font-size: 11.5px; color: var(--text-muted); margin-top: 2px; line-height: 1.4; }
+  .ak-year-toolbar .ak-year-select { width: 145px; min-width: 145px; text-align: center; text-align-last: center; }
+
+  .ak-tax-overview-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    margin-bottom: 12px;
   }
-  .ak-account-year .ak-account-toolbar-label { width: 100%; margin-bottom: 6px; text-align: center; }
-  .ak-account-year .ak-year-select { width: 100%; min-width: 0; text-align: center; text-align-last: center; }
-  .ak-account-intro {
-    display: flex; align-items: flex-start; gap: 10px; padding: 11px 13px; margin-bottom: 14px;
-    background: var(--soft-gold); border: 1px solid color-mix(in srgb, var(--gold) 28%, transparent); border-radius: 10px;
+  .ak-tax-overview-title { font-size: 13px; font-weight: 800; color: var(--text); }
+  .ak-tax-overview-sub { font-size: 11px; color: var(--text-faint); margin-top: 2px; line-height: 1.4; }
+  .ak-tax-overview-rate {
+    flex-shrink: 0; font-family: 'Inconsolata', monospace; font-size: 11px; font-weight: 800;
+    color: var(--navy); background: var(--soft-navy); border-radius: 7px; padding: 5px 8px;
   }
-  .ak-account-intro-icon { font-size: 17px; line-height: 1.2; }
-  .ak-account-intro-title { font-size: 12.5px; font-weight: 800; color: var(--text); margin-bottom: 2px; }
-  .ak-account-intro-text { font-size: 11.5px; line-height: 1.5; color: var(--text-muted); }
-  .ak-tax-choice-note { font-size: 11px; color: var(--text-faint); line-height: 1.45; margin-top: 4px; }
-  @media (max-width: 650px) {
-    .ak-account-toolbar { align-items: stretch; flex-direction: column; }
-    .ak-account-year { flex: 0 0 auto; width: 100%; }
-    .ak-account-year .ak-year-select { width: 100%; }
+
+  .ak-ask-inline {
+    margin: 2px 0 14px; padding: 11px 12px; border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--entry-bg);
   }
-  @media (max-width: 460px) {
-    .ak-account-switch { grid-template-columns: 1fr; }
+  .ak-ask-inline-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px;
+  }
+  .ak-ask-inline-title { display: flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 700; color: var(--text); }
+  .ak-ask-inline-count {
+    font-family: 'Inconsolata', monospace; font-size: 10px; font-weight: 700; color: var(--text-muted);
+    background: var(--card); border: 1px solid var(--border); border-radius: 999px; padding: 2px 8px;
+  }
+  .ak-ask-inline-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .ak-ask-inline-stat { min-width: 0; padding: 8px 10px; border-radius: 8px; background: var(--card); border: 1px solid var(--border); }
+  .ak-ask-inline-label { font-size: 9.5px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 3px; }
+  .ak-ask-inline-value { font-family: 'Inconsolata', monospace; font-size: 14px; font-weight: 800; color: var(--text); overflow-wrap: anywhere; }
+  .ak-ask-inline-value.pos { color: var(--green); }
+  .ak-ask-inline-value.neg { color: var(--red); }
+  .ak-ask-inline-note { font-size: 10.5px; color: var(--text-muted); line-height: 1.45; margin-top: 8px; }
+
+  .ak-entry.ask {
+    border-color: var(--border);
+    background: var(--entry-bg);
+    box-shadow: inset 2px 0 0 color-mix(in srgb, var(--gold) 72%, var(--border));
+  }
+  .ak-entry.ask:hover, .ak-entry.ask:focus-visible {
+    border-color: color-mix(in srgb, var(--gold) 28%, var(--border));
+    background: var(--hover);
+  }
+
+  @media (max-width: 620px) {
+    .ak-year-toolbar { align-items: stretch; }
+    .ak-year-toolbar .ak-year-select { width: 100%; min-width: 0; }
+    .ak-ask-inline-stats { grid-template-columns: 1fr; }
   }
 
   .ak-toggle-switch {
@@ -386,14 +414,25 @@
   .ak-ticker-status.loading { color: var(--navy); }
   .ak-ticker-status.ok { color: var(--green); }
   .ak-ticker-status.err { color: var(--red); }
-  .ak-filter-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
-  @media (max-width: 760px) { .ak-filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .ak-filter-grid { display: grid; grid-template-columns: 0.75fr 1fr 0.9fr 1.1fr 1.15fr; gap: 10px; }
+  .ak-filter-grid .ak-field { margin-bottom: 0; }
+  .ak-filter-grid label { font-size: 11px; }
+  .ak-filter-grid select { padding-left: 8px; padding-right: 8px; font-size: 12.5px; }
+  @media (max-width: 820px) { .ak-filter-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  @media (max-width: 600px) { .ak-filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   @media (max-width: 440px) { .ak-filter-grid { grid-template-columns: 1fr; } }
   .ak-install-status { display: inline-flex; align-items: center; gap: 6px; font-size: 10.5px; color: var(--green); font-weight: 700; }
   .ak-carry-note strong { color: var(--text); }
   .ak-fx-badge { display: inline-block; font-size: 10px; font-family: 'Inconsolata', monospace; background: var(--soft-navy); color: var(--navy); border-radius: 5px; padding: 1px 5px; font-weight: 700; }
-  .ak-ask-badge { display: inline-block; font-size: 10px; font-family: 'Inconsolata', monospace; background: var(--soft-gold); color: var(--gold); border-radius: 5px; padding: 1px 5px; font-weight: 700; }
-  .ak-ask-note { font-size: 11.5px; color: var(--text-faint); margin: 4px 0 8px; line-height: 1.4; }
+  .ak-ask-badge {
+    display: inline-block; font-size: 9.5px; font-family: 'Inconsolata', monospace;
+    background: color-mix(in srgb, var(--soft-gold) 55%, var(--card)); color: var(--gold);
+    border: 1px solid color-mix(in srgb, var(--gold) 22%, var(--border)); border-radius: 5px;
+    padding: 0 5px; font-weight: 700; line-height: 1.55;
+  }
+  .ak-tax-choice-note { min-height: 16px; margin-top: 4px; font-size: 10.5px; color: var(--text-faint); line-height: 1.35; }
+  .ak-tax-choice-note.ask { color: var(--text-muted); }
+  .ak-ask-note { font-size: 11px; color: var(--text-faint); margin: 4px 0 8px; line-height: 1.4; }
   .ak-entry-top-right { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
   .ak-entry-chevron { color: var(--text-faint); font-size: 19px; line-height: 1; margin-left: 2px; opacity: 0.45; transform: translateX(-2px); transition: opacity 0.14s ease, transform 0.14s ease; }
   .ak-entry:hover .ak-entry-chevron, .ak-entry:focus-visible .ak-entry-chevron { opacity: 1; transform: translateX(0); color: var(--navy); }
@@ -419,6 +458,7 @@
     background: rgba(20,21,24,0.38);
     backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
     display: none; align-items: center; justify-content: center; padding: 12px;
+    overflow: hidden; overscroll-behavior: contain;
   }
   .ak-modal-overlay.open { display: flex; animation: ak-overlay-in 0.16s ease; }
   @keyframes ak-overlay-in { from { opacity: 0; } to { opacity: 1; } }
@@ -507,7 +547,7 @@
     width: min(680px, 100%); max-height: 92vh; overflow: hidden; display: flex; flex-direction: column;
     background: var(--card); border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 24px 60px var(--modal-shadow);
   }
-  .ak-sale-details-body { padding: 20px; overflow-y: auto; }
+  .ak-sale-details-body { padding: 20px; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; }
   .ak-details-hero { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 18px; }
   .ak-details-hero .ak-company-logo-wrap { width: 46px; height: 46px; border-radius: 12px; }
   .ak-details-return { text-align: right; flex-shrink: 0; }
@@ -551,17 +591,53 @@
 
   /* Mere forklarende hurtige fakta */
   .ak-details-story {
-    display: flex; align-items: flex-start; gap: 10px; padding: 11px 13px; margin: -2px 0 14px;
-    background: var(--soft-navy); border-radius: 10px; font-size: 12px; line-height: 1.55; color: var(--text-muted);
+    display: flex; align-items: flex-start; gap: 9px; margin-bottom: 16px; padding: 10px 12px;
+    border-radius: 10px; background: var(--soft-navy); color: var(--text-muted); font-size: 11.5px; line-height: 1.55;
   }
   .ak-details-story strong { color: var(--text); }
-  .ak-details-flow { display: grid; grid-template-columns: minmax(0, 1fr) 30px minmax(0, 1fr); align-items: stretch; gap: 8px; margin-bottom: 17px; }
-  .ak-details-flow-card { border: 1px solid var(--border); background: var(--entry-bg); border-radius: 11px; padding: 11px 12px; min-width: 0; }
-  .ak-details-flow-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-faint); margin-bottom: 5px; }
-  .ak-details-flow-value { font-family: 'Inconsolata', monospace; font-size: 17px; font-weight: 800; color: var(--text); overflow-wrap: anywhere; }
-  .ak-details-flow-sub { font-size: 10.5px; color: var(--text-faint); margin-top: 4px; line-height: 1.4; }
-  .ak-details-flow-arrow { display: flex; align-items: center; justify-content: center; color: var(--navy); font-size: 21px; font-weight: 800; }
-  .ak-details-groups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 17px; }
+  .ak-details-top-actions {
+    display: flex; align-items: center; justify-content: flex-start; gap: 8px; margin: -4px 0 15px;
+  }
+  .ak-details-price-link {
+    display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 800; color: var(--navy);
+    background: var(--soft-navy); border: 1px solid color-mix(in srgb, var(--navy) 20%, var(--border));
+    border-radius: 8px; padding: 7px 11px; text-decoration: none; transition: transform 0.12s ease, filter 0.12s ease; margin: 0;
+  }
+  .ak-details-price-link:hover { filter: brightness(0.96); transform: translateY(-1px); }
+
+  .ak-details-trade-grid {
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 11px; margin-bottom: 17px;
+  }
+  .ak-details-trade-card {
+    min-width: 0; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--card);
+  }
+  .ak-details-trade-card.sale { border-color: color-mix(in srgb, var(--green) 24%, var(--border)); }
+  .ak-details-trade-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 9px; padding: 10px 12px;
+    background: var(--entry-bg); border-bottom: 1px solid var(--border);
+  }
+  .ak-details-trade-title { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 800; color: var(--text); }
+  .ak-details-trade-icon {
+    width: 23px; height: 23px; display: inline-flex; align-items: center; justify-content: center;
+    border-radius: 7px; background: var(--soft-navy); color: var(--navy); font-size: 12px; font-weight: 900;
+  }
+  .ak-details-trade-card.sale .ak-details-trade-icon { background: var(--soft-green); color: var(--green); }
+  .ak-details-trade-date { font-size: 10px; color: var(--text-faint); white-space: nowrap; }
+  .ak-details-trade-primary { padding: 11px 12px 9px; }
+  .ak-details-trade-primary-label { font-size: 10px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+  .ak-details-trade-primary-value {
+    font-family: 'Inconsolata', monospace; font-size: 18px; font-weight: 800; color: var(--text); overflow-wrap: anywhere;
+  }
+  .ak-details-trade-rows { border-top: 1px solid var(--border); }
+  .ak-details-trade-row {
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 7px 12px;
+    border-top: 1px solid var(--border); font-size: 11.5px;
+  }
+  .ak-details-trade-row:first-child { border-top: none; }
+  .ak-details-trade-label { color: var(--text-faint); }
+  .ak-details-trade-value { color: var(--text); font-weight: 700; text-align: right; overflow-wrap: anywhere; }
+
+  .ak-details-groups { display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 17px; }
   .ak-details-group { border: 1px solid var(--border); border-radius: 11px; overflow: hidden; background: var(--card); }
   .ak-details-group-title { padding: 9px 11px; background: var(--entry-bg); border-bottom: 1px solid var(--border); font-size: 11.5px; font-weight: 800; color: var(--text); }
   .ak-details-info-row { display: flex; justify-content: space-between; gap: 12px; padding: 8px 11px; border-top: 1px solid var(--border); font-size: 11.5px; }
@@ -569,10 +645,11 @@
   .ak-details-info-label { color: var(--text-faint); }
   .ak-details-info-value { color: var(--text); font-weight: 700; text-align: right; overflow-wrap: anywhere; }
   .ak-details-tax-note { font-size: 10.5px; color: var(--text-faint); line-height: 1.45; margin-top: 5px; }
-  @media (max-width: 560px) {
-    .ak-details-flow { grid-template-columns: 1fr; }
-    .ak-details-flow-arrow { transform: rotate(90deg); min-height: 22px; }
-    .ak-details-groups { grid-template-columns: 1fr; }
+
+  @media (max-width: 620px) {
+    .ak-details-trade-grid { grid-template-columns: 1fr; }
+    .ak-details-top-actions { align-items: stretch; }
+    .ak-details-price-link { width: 100%; justify-content: center; }
   }
 
   /* Theme toggle */
@@ -602,14 +679,19 @@
   @media (max-width: 600px) { .afk-grid { grid-template-columns: 1fr; } }
   .afk-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
   @media (max-width: 600px) { .afk-summary { grid-template-columns: 1fr; } }
-  .afk-chart-legend { display: flex; gap: 18px; font-size: 11.5px; color: var(--text-muted); margin-bottom: 10px; align-items: center; }
+  .afk-chart-legend { display: flex; gap: 18px; font-size: 11.5px; color: var(--text-muted); margin-bottom: 10px; align-items: center; flex-wrap: wrap; }
   .afk-dot { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: middle; background: var(--green); }
   .afk-dot.dashed { background: none; border-top: 2px dashed var(--text-faint); width: 12px; height: 0; border-radius: 0; }
   .afk-chart-svg { width: 100%; height: auto; display: block; }
+  .afk-error { padding: 16px; border: 1px solid color-mix(in srgb, var(--red) 35%, var(--border)); background: var(--soft-red); border-radius: 10px; color: var(--red); font-size: 12.5px; line-height: 1.55; }
 
   @media (max-width: 780px) {
-    .dash-shell { flex-direction: column; }
-    .dash-sidebar, .dash-sidebar.collapsed { width: 100%; flex-direction: row; align-items: center; padding: 12px 14px; gap: 10px; border-right: none; border-bottom: 1px solid var(--border); height: auto; top: 0; z-index: 5; overflow: visible; }
+    .dash-shell { display: flex; flex-direction: column; }
+    .dash-sidebar, .dash-sidebar.collapsed {
+      position: sticky; inset: auto; top: 0; width: 100%; flex-direction: row; align-items: center;
+      padding: 12px 14px; gap: 10px; border-right: none; border-bottom: 1px solid var(--border);
+      height: auto; z-index: 40; overflow: visible;
+    }
     .dash-sidebar-top, .dash-sidebar.collapsed .dash-sidebar-top { display: none; }
     .dash-brand { display: none; }
     .dash-nav { flex-direction: row; flex: 1; overflow-x: auto; gap: 6px; }
@@ -620,7 +702,7 @@
     .dash-sidebar.collapsed .ak-logout-icon { display: none; }
     .dash-sidebar.collapsed .ak-logout-label { max-width: 70px; opacity: 1; }
     .ak-user-info { display: none; }
-    .dash-content { padding: 20px 14px 90px; }
+    .dash-content, .dash-sidebar.collapsed + .dash-content { margin-left: 0; padding: 20px 14px 90px; }
   }
 
   ::view-transition-old(root), ::view-transition-new(root) { animation-duration: 0.2s; animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1); }
@@ -737,7 +819,6 @@
   let tickerLookupSequence = 0;
   let deferredInstallPrompt = null;
   let detailsSaleId = null;
-  let activeDepotView = localStorage.getItem('verktoj-depot-view') === 'ask' ? 'ask' : 'depot';
 
   const DEFAULT_BROKERS = ['Nordnet', 'Endavu', 'Saxo Bank', 'Danske Bank', 'Jyske Bank', 'Nordea'];
   const NOT_SPECIFIED_BROKER = 'Ikke angivet';
@@ -1067,6 +1148,44 @@
     }, { passive: false });
   }
 
+  let backgroundScrollY = 0;
+  let backgroundRootOverflow = '';
+  let backgroundBodyOverflow = '';
+  let backgroundBodyPaddingRight = '';
+
+  function lockBackgroundScroll(){
+    if(document.body.classList.contains('ak-dialog-open')) return;
+    backgroundScrollY = window.scrollY || document.documentElement.scrollTop || 0;
+    backgroundRootOverflow = document.documentElement.style.overflow || '';
+    backgroundBodyOverflow = document.body.style.overflow || '';
+    backgroundBodyPaddingRight = document.body.style.paddingRight || '';
+
+    // Lås scroll uden position:fixed. Det bevarer den sticky sidebjælke på sin plads,
+    // også når en dialog åbnes langt nede på siden.
+    const scrollbarWidth = Math.max(0, window.innerWidth - document.documentElement.clientWidth);
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden';
+    if(scrollbarWidth > 0 && !(window.CSS && CSS.supports && CSS.supports('scrollbar-gutter: stable'))){
+      const currentPadding = parseFloat(getComputedStyle(document.body).paddingRight) || 0;
+      document.body.style.paddingRight = `${currentPadding + scrollbarWidth}px`;
+    }
+    document.body.classList.add('ak-dialog-open');
+  }
+
+  function unlockBackgroundScroll(){
+    if(!document.body.classList.contains('ak-dialog-open')) return;
+    const restoreY = backgroundScrollY;
+    document.body.classList.remove('ak-dialog-open');
+    document.documentElement.style.overflow = backgroundRootOverflow;
+    document.body.style.overflow = backgroundBodyOverflow;
+    document.body.style.paddingRight = backgroundBodyPaddingRight;
+    backgroundRootOverflow = '';
+    backgroundBodyOverflow = '';
+    backgroundBodyPaddingRight = '';
+    backgroundScrollY = 0;
+    if(Math.abs((window.scrollY || 0) - restoreY) > 1) window.scrollTo(0, restoreY);
+  }
+
   function renderSettingsModal(){
     return `
       <div class="ak-modal-overlay" id="settingsOverlay">
@@ -1216,12 +1335,14 @@
     document.getElementById('settingsOverlay').outerHTML = renderSettingsModal();
     const overlay = document.getElementById('settingsOverlay');
     overlay.classList.add('open');
+    lockBackgroundScroll();
     wireBackdropClose(overlay, closeSettingsModal);
     renderSettingsBody();
   }
   function closeSettingsModal(){
     const el = document.getElementById('settingsOverlay');
     if(el) el.classList.remove('open');
+    unlockBackgroundScroll();
     render();
   }
 
@@ -1373,7 +1494,7 @@
     const editAttr = searchMode ? 'data-sog-edit' : 'data-edit';
     const delAttr = searchMode ? 'data-sog-del' : 'data-del';
     return `
-      <div class="ak-entry" data-sale-details="${escapeHtml(s.id)}" tabindex="0" role="button" aria-label="Vis detaljer om ${escapeHtml(s.navn || s.ticker || 'salget')}">
+      <div class="ak-entry ${s.satsmode === 'ask' ? 'ask' : ''}" data-sale-details="${escapeHtml(s.id)}" tabindex="0" role="button" aria-label="Vis detaljer om ${escapeHtml(s.navn || s.ticker || 'salget')}">
         <div class="ak-entry-row-top">
           ${saleIdentityHtml(s, isGain, showYear)}
           <div class="ak-entry-top-right">
@@ -1582,6 +1703,7 @@
   }
 
   function renderAuthScreen(){
+    unlockBackgroundScroll();
     document.getElementById('app').innerHTML = `
       <div class="ak-auth-wrap">
         <div class="ak-auth-title">Aktiesalg &amp; skat</div>
@@ -1610,6 +1732,7 @@
   }
 
   function renderLoading(){
+    unlockBackgroundScroll();
     document.getElementById('app').innerHTML = `
       <div class="ak-loading"><div class="ak-spinner"></div>Henter dine salg …</div>
       ${renderThemeToggle()}
@@ -1743,12 +1866,10 @@
     const thresholdInfo = progressionsgraenseInfo(activeYear);
     const threshold = thresholdInfo.amount;
     const yearData = perYear[activeYear] || { anden: 0, sales: [], totalGevinst: 0, totalSkat: 0, netto: 0, endCum: 0, carryOut: 0, carryIn: 0 };
-    const isGain = yearData.totalGevinst >= 0;
-    const andenVal = state.andenPerYear[activeYear] || 0;
-
     const askYearData = askPerYear[activeYear] || { sales: [], totalGevinst: 0, totalSkat: 0, netto: 0, endCum: 0, carryOut: 0, carryIn: 0 };
+    const isGain = yearData.totalGevinst >= 0;
     const askIsGain = askYearData.totalGevinst >= 0;
-    const isAskView = activeDepotView === 'ask';
+    const andenVal = state.andenPerYear[activeYear] || 0;
 
     const skattepligtigt = Math.max(0, yearData.endCum);
     const scaleMax = Math.max(threshold * 1.6, skattepligtigt * 1.15, threshold + 1);
@@ -1768,116 +1889,102 @@
     window.__akYears = years;
     window.__akActiveYear = activeYear;
     window.__akAndenVal = andenVal;
-    window.__akIsAskView = isAskView;
 
-    const accountToolbar = `
-      <div class="ak-panel ak-account-toolbar">
-        <div class="ak-account-toolbar-main">
-          <div class="ak-account-toolbar-label">Vis konto</div>
-          <div class="ak-account-switch" role="tablist" aria-label="Vælg depot">
-            <button class="ak-account-tab ${!isAskView ? 'active' : ''}" data-account-view="depot" role="tab" aria-selected="${!isAskView}">
-              <span class="ak-account-tab-title">Almindeligt depot</span>
-              <span class="ak-account-tab-sub">27% / 42% og almindeligt fremført tab</span>
-            </button>
-            <button class="ak-account-tab ask ${isAskView ? 'active' : ''}" data-account-view="ask" role="tab" aria-selected="${isAskView}">
-              <span class="ak-account-tab-title">Aktiesparekonto</span>
-              <span class="ak-account-tab-sub">Separat 17%-overblik</span>
-            </button>
-          </div>
+    const askInline = askYearData.sales.length > 0 ? `
+      <div class="ak-ask-inline">
+        <div class="ak-ask-inline-head">
+          <div class="ak-ask-inline-title"><span class="ak-ask-badge">ASK</span> Aktiesparekonto · separat skatteoverblik</div>
+          <span class="ak-ask-inline-count">${askYearData.sales.length} salg</span>
         </div>
-        <div class="ak-account-year">
-          <div class="ak-account-toolbar-label">Skatteår</div>
-          <select class="ak-year-select" id="yearSelect"></select>
+        <div class="ak-ask-inline-stats">
+          <div class="ak-ask-inline-stat"><div class="ak-ask-inline-label">Gevinst/tab</div><div class="ak-ask-inline-value ${askIsGain ? 'pos' : 'neg'}">${fmtKr(askYearData.totalGevinst)}</div></div>
+          <div class="ak-ask-inline-stat"><div class="ak-ask-inline-label">Vejledende skat 17%</div><div class="ak-ask-inline-value">${fmtKr(askYearData.totalSkat)}</div></div>
+          <div class="ak-ask-inline-stat"><div class="ak-ask-inline-label">Efter beregnet skat</div><div class="ak-ask-inline-value ${askYearData.netto >= 0 ? 'pos' : 'neg'}">${fmtKr(askYearData.netto)}</div></div>
         </div>
-      </div>`;
+        <div class="ak-ask-inline-note">ASK-tallene holdes helt uden for 27/42%-beregningen og fremførte tab på dit almindelige depot. Bankens endelige ASK-skat opgøres efter lagerprincippet.${askYearData.carryOut > 0 ? ` Registreret ASK-tab til senere modregning: ${fmtKr(askYearData.carryOut)}.` : ''}</div>
+      </div>` : '';
 
-    const depotContent = `
-      <div class="ak-panel">
-        <div class="ak-summary">
-          <div class="ak-card"><div class="ak-card-label">Gevinst/tab i alt</div><div class="ak-card-value ${isGain ? 'pos' : 'neg'}">${fmtKr(yearData.totalGevinst)}</div></div>
-          <div class="ak-card"><div class="ak-card-label">Beregnet skat på salg</div><div class="ak-card-value">${fmtKr(yearData.totalSkat)}</div></div>
-          <div class="ak-card"><div class="ak-card-label">Efter skat</div><div class="ak-card-value">${fmtKr(yearData.netto)}</div></div>
-          <div class="ak-card"><div class="ak-card-label">Tab til modregning</div><div class="ak-card-value ${yearData.carryOut > 0 ? 'neg' : ''}">${fmtKr(yearData.carryOut)}</div></div>
-        </div>
-
-        ${yearData.carryOut > 0 ? `<div class="ak-carry-note"><strong>${fmtKr(yearData.carryOut)}</strong> står stadig til modregning. Du kan derfor realisere tilsvarende nettoaktiegevinster, før beregningen begynder at vise skat.</div>` : yearData.carryIn > 0 ? `<div class="ak-carry-note">Dit fremførte tab fra tidligere år er nu fuldt modregnet i ${activeYear}.</div>` : ''}
-
-        ${renderLedger(yearData, activeYear, threshold)}
-
-        <div class="ak-bracket-wrap">
-          <div class="ak-bracket-label">Din skattepligtige aktieindkomst: ${fmtKrHel(skattepligtigt)}</div>
-          <div class="ak-bracket-legend">
-            <span><span class="afk-dot" style="background:var(--navy);"></span> 27% sats</span>
-            <span><span class="afk-dot" style="background:var(--red);"></span> 42% sats</span>
-          </div>
-          <div class="ak-bracket-track">
-            <div class="ak-bracket-fill"><div class="low" style="width:${lowFillPct}%"></div><div class="high" style="width:${highFillPct}%"></div></div>
-            <div class="ak-bracket-threshold-mark" style="left:${thresholdMarkPct}%;"></div>
-          </div>
-          <div class="ak-bracket-scale">
-            <span class="ak-bracket-scale-mark" style="left:${thresholdMarkPct}%;">${fmtKrHel(threshold)}<br><span class="ak-bracket-scale-sub">grænse for 27%/42%</span></span>
-          </div>
-          <div class="ak-bracket-note">${bracketStatus} Progressionsgrænse ${activeYear}: ${fmtKrHel(threshold)} (${state.gift ? 'gift og samlevende med ægtefælle' : 'enlig'}).${thresholdInfo.known ? '' : ` Foreløbig visning: grænsen for ${activeYear} er ikke indbygget endnu, så ${thresholdInfo.sourceYear}-grænsen bruges.`}</div>
-        </div>
-
-        <div class="ak-anden-row" style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
-          ${andenEditing ? `
-            <span>Anden aktieindkomst i ${activeYear} (fx udbytter):</span>
-            <input type="number" id="andenInput" class="ak-anden-input" value="${andenVal}" min="0" step="any" autofocus>
-            <button class="ak-anden-save" id="andenSaveBtn">Gem</button>
-          ` : `
-            <span>Anden aktieindkomst i ${activeYear} (fx udbytter): <strong>${fmtKr(andenVal)}</strong></span>
-            <button class="ak-editlink" id="andenEditBtn">Rediger</button>
-          `}
-        </div>
-      </div>
-
-      <div class="ak-panel">
-        <div class="ak-list-header">
-          <div class="ak-list-title">Salg · ${activeYear}</div>
-          <button class="ak-add-btn" id="openAddBtn">+ Tilføj salg</button>
-        </div>
-        <div class="ak-entry-list" id="salesList">
-          ${yearData.sales.length === 0 ? `<div class="ak-empty-panel">Ingen salg registreret for ${activeYear} endnu. Klik "+ Tilføj salg" for at komme i gang.</div>` : yearData.sales.map(s => saleEntryHtml(s, { showYear: false, mode: 'year', showSats: true })).join('')}
-        </div>
-      </div>`;
-
-    const askContent = `
-      <div class="ak-panel">
-        <div class="ak-account-intro">
-          <div class="ak-account-intro-icon">🔒</div>
-          <div>
-            <div class="ak-account-intro-title">Separat fra dit almindelige depot</div>
-            <div class="ak-account-intro-text">ASK-handler påvirker ikke 27/42%-grænsen eller tab på dit almindelige depot. Skatten nedenfor er et vejledende 17%-overblik over registrerede salg; banken opgør den endelige ASK-skat efter lagerprincippet.</div>
-          </div>
-        </div>
-        <div class="ak-summary">
-          <div class="ak-card"><div class="ak-card-label">Gevinst/tab i alt</div><div class="ak-card-value ${askIsGain ? 'pos' : 'neg'}">${fmtKr(askYearData.totalGevinst)}</div></div>
-          <div class="ak-card"><div class="ak-card-label">Vejledende skat (17%)</div><div class="ak-card-value">${fmtKr(askYearData.totalSkat)}</div></div>
-          <div class="ak-card"><div class="ak-card-label">Efter beregnet skat</div><div class="ak-card-value">${fmtKr(askYearData.netto)}</div></div>
-          <div class="ak-card"><div class="ak-card-label">ASK-tab til modregning</div><div class="ak-card-value ${askYearData.carryOut > 0 ? 'neg' : ''}">${fmtKr(askYearData.carryOut)}</div></div>
-        </div>
-        ${askYearData.carryOut > 0 ? `<div class="ak-carry-note"><strong>${fmtKr(askYearData.carryOut)}</strong> i registreret ASK-tab står til modregning i fremtidige ASK-gevinster i dette vejledende overblik.</div>` : ''}
-      </div>
-
-      <div class="ak-panel">
-        <div class="ak-list-header">
-          <div class="ak-list-title">ASK-salg · ${activeYear} <span class="ak-ask-badge" style="margin-left:6px;">ASK</span></div>
-          <button class="ak-add-btn" id="openAddBtn">+ Tilføj ASK-salg</button>
-        </div>
-        <div class="ak-entry-list" id="salesList">
-          ${askYearData.sales.length === 0 ? `<div class="ak-empty-panel">Ingen ASK-salg registreret for ${activeYear} endnu.</div>` : askYearData.sales.map(s => saleEntryHtml(s, { showYear: false, mode: 'year', showSats: false })).join('')}
-        </div>
-      </div>`;
+    const allSales = yearData.sales.concat(askYearData.sales).slice().sort(saleChronology);
+    const allSalesHtml = allSales.length === 0
+      ? `<div class="ak-empty-panel">Ingen salg registreret for ${activeYear}.</div>`
+      : allSales.map(s => saleEntryHtml(s, { showYear: false, mode: 'year', showSats: s.satsmode !== 'ask' })).join('');
 
     return `
       <div class="ak-root">
         <div class="ak-view-header">
           <div class="ak-title">Aktiesalg &amp; skat</div>
-          <div class="ak-subtitle">Overblik over dine salg, år for år — opdelt efter konto.</div>
+          <div class="ak-subtitle">Ét samlet overblik over årets salg. ASK-handler er markeret særskilt og påvirker ikke skatten på dit almindelige depot.</div>
         </div>
-        ${accountToolbar}
-        ${isAskView ? askContent : depotContent}
+
+        <div class="ak-panel ak-year-toolbar">
+          <div class="ak-year-toolbar-copy">
+            <div class="ak-year-toolbar-title">Vælg skatteår</div>
+            <div class="ak-year-toolbar-sub">Viser alle salg samlet for året.</div>
+          </div>
+          <select class="ak-year-select" id="yearSelect" aria-label="Vælg skatteår"></select>
+        </div>
+
+        <div class="ak-panel">
+          <div class="ak-tax-overview-head">
+            <div>
+              <div class="ak-tax-overview-title">Skatteoverblik · almindeligt depot</div>
+              <div class="ak-tax-overview-sub">Kun almindelige depotsalg og anden aktieindkomst indgår i 27/42%-beregningen.</div>
+            </div>
+            <span class="ak-tax-overview-rate">27% / 42%</span>
+          </div>
+
+          <div class="ak-summary">
+            <div class="ak-card"><div class="ak-card-label">Gevinst/tab i alt</div><div class="ak-card-value ${isGain ? 'pos' : 'neg'}">${fmtKr(yearData.totalGevinst)}</div></div>
+            <div class="ak-card"><div class="ak-card-label">Beregnet skat på salg</div><div class="ak-card-value">${fmtKr(yearData.totalSkat)}</div></div>
+            <div class="ak-card"><div class="ak-card-label">Efter skat</div><div class="ak-card-value">${fmtKr(yearData.netto)}</div></div>
+            <div class="ak-card"><div class="ak-card-label">Tab til modregning</div><div class="ak-card-value ${yearData.carryOut > 0 ? 'neg' : ''}">${fmtKr(yearData.carryOut)}</div></div>
+          </div>
+
+          ${askInline}
+
+          ${yearData.carryOut > 0 ? `<div class="ak-carry-note"><strong>${fmtKr(yearData.carryOut)}</strong> står stadig til modregning. Du kan derfor realisere tilsvarende nettoaktiegevinster, før beregningen begynder at vise skat.</div>` : yearData.carryIn > 0 ? `<div class="ak-carry-note">Dit fremførte tab fra tidligere år er nu fuldt modregnet i ${activeYear}.</div>` : ''}
+
+          ${renderLedger(yearData, activeYear, threshold)}
+
+          <div class="ak-bracket-wrap">
+            <div class="ak-bracket-label">Din skattepligtige aktieindkomst: ${fmtKrHel(skattepligtigt)}</div>
+            <div class="ak-bracket-legend">
+              <span><span class="afk-dot" style="background:var(--navy);"></span> 27% sats</span>
+              <span><span class="afk-dot" style="background:var(--red);"></span> 42% sats</span>
+            </div>
+            <div class="ak-bracket-track">
+              <div class="ak-bracket-fill"><div class="low" style="width:${lowFillPct}%"></div><div class="high" style="width:${highFillPct}%"></div></div>
+              <div class="ak-bracket-threshold-mark" style="left:${thresholdMarkPct}%;"></div>
+            </div>
+            <div class="ak-bracket-scale">
+              <span class="ak-bracket-scale-mark" style="left:${thresholdMarkPct}%;">${fmtKrHel(threshold)}<br><span class="ak-bracket-scale-sub">grænse for 27%/42%</span></span>
+            </div>
+            <div class="ak-bracket-note">${bracketStatus} Progressionsgrænse ${activeYear}: ${fmtKrHel(threshold)} (${state.gift ? 'gift og samlevende med ægtefælle' : 'enlig'}).${thresholdInfo.known ? '' : ` Foreløbig visning: grænsen for ${activeYear} er ikke indbygget endnu, så ${thresholdInfo.sourceYear}-grænsen bruges.`}</div>
+          </div>
+
+          <div class="ak-anden-row" style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
+            ${andenEditing ? `
+              <span>Anden aktieindkomst i ${activeYear} (fx udbytter):</span>
+              <input type="number" id="andenInput" class="ak-anden-input" value="${andenVal}" min="0" step="any" autofocus>
+              <button class="ak-anden-save" id="andenSaveBtn">Gem</button>
+            ` : `
+              <span>Anden aktieindkomst i ${activeYear} (fx udbytter): <strong>${fmtKr(andenVal)}</strong></span>
+              <button class="ak-editlink" id="andenEditBtn">Rediger</button>
+            `}
+          </div>
+        </div>
+
+        <div class="ak-panel">
+          <div class="ak-list-header">
+            <div>
+              <div class="ak-list-title">Salg · ${activeYear}</div>
+              <div style="font-size:11px;color:var(--text-faint);margin-top:2px;">Almindeligt depot og ASK vises i samme liste. ASK-salg har en diskret markering.</div>
+            </div>
+            <button class="ak-add-btn" id="openAddBtn">+ Tilføj salg</button>
+          </div>
+          <div class="ak-entry-list" id="salesList">${allSalesHtml}</div>
+        </div>
+
         <div class="ak-footnote">Se skattesatser og regler under ⚙️ Indstillinger → Om skattesatserne</div>
       </div>
     `;
@@ -1885,37 +1992,25 @@
 
   function wireAktiesalgView(){
     const years = window.__akYears, activeYearLocal = window.__akActiveYear, andenVal = window.__akAndenVal;
-    const isAskView = !!window.__akIsAskView;
     const yearSelect = document.getElementById('yearSelect');
     yearSelect.innerHTML = years.map(y => `<option value="${y}" ${y === activeYearLocal ? 'selected' : ''}>${y}</option>`).join('');
     yearSelect.addEventListener('change', () => { renderBloedt(() => { activeYear = parseInt(yearSelect.value); render(); }); });
 
-    document.querySelectorAll('[data-account-view]').forEach(btn => btn.addEventListener('click', () => {
-      const next = btn.dataset.accountView === 'ask' ? 'ask' : 'depot';
-      if(next === activeDepotView) return;
-      activeDepotView = next;
-      andenEditing = false;
-      try { localStorage.setItem('verktoj-depot-view', activeDepotView); } catch(e){}
-      renderBloedt();
-    }));
-
-    if(!isAskView){
-      if(andenEditing){
-        const input = document.getElementById('andenInput');
-        input.focus();
-        input.select();
-        const commit = () => {
-          state.andenPerYear[activeYearLocal] = parseFloat(input.value.replace(',','.')) || 0;
-          andenEditing = false;
-          save(); renderBloedt();
-        };
-        document.getElementById('andenSaveBtn').addEventListener('click', commit);
-        input.addEventListener('keydown', (e) => { if(e.key === 'Enter') commit(); if(e.key === 'Escape'){ andenEditing = false; renderBloedt(); } });
-      } else {
-        document.getElementById('andenEditBtn').addEventListener('click', () => { andenEditing = true; renderBloedt(); });
-      }
-      document.getElementById('ledgerToggleBtn').addEventListener('click', () => { ledgerOpen = !ledgerOpen; renderBloedt(); });
+    if(andenEditing){
+      const input = document.getElementById('andenInput');
+      input.focus();
+      input.select();
+      const commit = () => {
+        state.andenPerYear[activeYearLocal] = parseFloat(input.value.replace(',','.')) || 0;
+        andenEditing = false;
+        save(); renderBloedt();
+      };
+      document.getElementById('andenSaveBtn').addEventListener('click', commit);
+      input.addEventListener('keydown', (e) => { if(e.key === 'Enter') commit(); if(e.key === 'Escape'){ andenEditing = false; renderBloedt(); } });
+    } else {
+      document.getElementById('andenEditBtn').addEventListener('click', () => { andenEditing = true; renderBloedt(); });
     }
+    document.getElementById('ledgerToggleBtn').addEventListener('click', () => { ledgerOpen = !ledgerOpen; renderBloedt(); });
 
     document.querySelectorAll('[data-edit]').forEach(btn => btn.addEventListener('click', (e) => { e.stopPropagation(); openModal(btn.dataset.edit); }));
     document.querySelectorAll('[data-del]').forEach(btn => btn.addEventListener('click', (e) => { e.stopPropagation(); deleteSale(btn.dataset.del); }));
@@ -1924,31 +2019,41 @@
   }
 
   // ============ AFKASTBEREGNER VIEW ============
+  const AFKAST_DEFAULTS = { start: '10000', maanedligt: '2000', pct: '7', aar: '20' };
+  let afkastSaveTimer = null;
+
   function afkastDefaults(){
-    return state.afkast || { start: '10000', maanedligt: '2000', pct: '7', aar: '20' };
+    return Object.assign({}, AFKAST_DEFAULTS, state.afkast || {});
   }
 
   function computeAfkast(start, maanedligt, pct, aar){
-    const months = Math.max(1, Math.round(aar * 12));
+    const safeStart = Math.max(0, Number.isFinite(start) ? start : 0);
+    const safeMaanedligt = Math.max(0, Number.isFinite(maanedligt) ? maanedligt : 0);
+    const safeAar = Math.min(100, Math.max(1, Number.isFinite(aar) ? aar : 1));
+    const months = Math.max(1, Math.round(safeAar * 12));
     const monthlyRate = Math.pow(1 + pct / 100, 1/12) - 1;
-    let value = start, contributed = start;
+    let value = safeStart, contributed = safeStart;
     const points = [{ year: 0, value, contributed }];
     for(let m = 1; m <= months; m++){
-      value = value * (1 + monthlyRate) + maanedligt;
-      contributed += maanedligt;
+      // Det månedlige indskud lægges til ved månedens slutning.
+      value = value * (1 + monthlyRate) + safeMaanedligt;
+      contributed += safeMaanedligt;
       if(m % 12 === 0 || m === months){
         points.push({ year: m / 12, value, contributed });
       }
     }
-    return { points, finalValue: value, totalContributed: contributed, totalGain: value - contributed };
+    return { points, finalValue: value, totalContributed: contributed, totalGain: value - contributed, years: months / 12 };
   }
 
-  function buildAfkastChartSvg(points, isDark){
+  function buildAfkastChartSvg(points, isGain){
     const W = 640, H = 260, padL = 54, padR = 14, padT = 14, padB = 28;
-    const maxVal = Math.max(...points.map(p => p.value), 1);
+    // Medtag både formue og indskud i skalaen. Ellers kan indskudslinjen blive klippet
+    // ved et lavt eller negativt forventet afkast.
+    const maxVal = Math.max(...points.flatMap(p => [p.value, p.contributed]), 1);
     const maxYear = points[points.length - 1].year || 1;
     const x = (year) => padL + (year / maxYear) * (W - padL - padR);
-    const y = (val) => padT + (1 - val / maxVal) * (H - padT - padB);
+    const y = (val) => padT + (1 - Math.max(0, val) / maxVal) * (H - padT - padB);
+    const resultColor = isGain ? 'var(--green)' : 'var(--red)';
 
     const valuePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${x(p.year).toFixed(1)} ${y(p.value).toFixed(1)}`).join(' ');
     const contribPath = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${x(p.year).toFixed(1)} ${y(p.contributed).toFixed(1)}`).join(' ');
@@ -1961,21 +2066,22 @@
               <text x="${padL - 8}" y="${yy}" text-anchor="end" dominant-baseline="middle" font-size="10" font-family="Inconsolata, monospace" fill="var(--text-faint)">${fmtKrShort(val)}</text>`;
     }).join('');
 
-    const xLabels = points.filter((p, i) => i === 0 || i === points.length - 1 || i % Math.ceil(points.length / 6) === 0)
-      .map(p => `<text x="${x(p.year).toFixed(1)}" y="${H - 8}" text-anchor="middle" font-size="10" font-family="Inconsolata, monospace" fill="var(--text-faint)">År ${Math.round(p.year)}</text>`).join('');
+    const labelStep = Math.max(1, Math.ceil(points.length / 6));
+    const xLabels = points.filter((p, i) => i === 0 || i === points.length - 1 || i % labelStep === 0)
+      .map(p => `<text x="${x(p.year).toFixed(1)}" y="${H - 8}" text-anchor="middle" font-size="10" font-family="Inconsolata, monospace" fill="var(--text-faint)">År ${Number.isInteger(p.year) ? p.year : p.year.toLocaleString('da-DK', { maximumFractionDigits: 1 })}</text>`).join('');
 
     return `
-      <svg viewBox="0 0 ${W} ${H}" class="afk-chart-svg">
+      <svg viewBox="0 0 ${W} ${H}" class="afk-chart-svg" role="img" aria-label="Udvikling i samlet formue og indskudt beløb">
         <defs>
           <linearGradient id="afkFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="var(--green)" stop-opacity="0.28" />
-            <stop offset="100%" stop-color="var(--green)" stop-opacity="0.02" />
+            <stop offset="0%" stop-color="${resultColor}" stop-opacity="0.24" />
+            <stop offset="100%" stop-color="${resultColor}" stop-opacity="0.02" />
           </linearGradient>
         </defs>
         ${gridLines}
         <path d="${areaPath}" fill="url(#afkFill)" stroke="none" />
         <path d="${contribPath}" fill="none" stroke="var(--text-faint)" stroke-width="2" stroke-dasharray="4 4" />
-        <path d="${valuePath}" fill="none" stroke="var(--green)" stroke-width="2.5" />
+        <path d="${valuePath}" fill="none" stroke="${resultColor}" stroke-width="2.5" />
         ${xLabels}
       </svg>
     `;
@@ -1999,13 +2105,13 @@
         <div class="ak-panel">
           <div class="ak-list-header" style="margin-bottom:14px;">
             <div class="ak-list-title">Dine tal</div>
-            <button class="ak-reset-btn" id="afkResetBtn" data-tip="Nulstil alle felter">↺ Nulstil</button>
+            <button class="ak-reset-btn" id="afkResetBtn" data-tip="Tøm alle felter">↺ Nulstil</button>
           </div>
           <div class="afk-grid">
-            <div class="ak-field"><label for="afkStart">Startbeløb (kr.)</label><input type="number" id="afkStart" value="${d.start}" min="0" step="any" placeholder="fx 10.000"></div>
-            <div class="ak-field"><label for="afkMaanedligt">Månedligt indskud (kr.)</label><input type="number" id="afkMaanedligt" value="${d.maanedligt}" min="0" step="any" placeholder="fx 2.000"></div>
-            <div class="ak-field"><label for="afkPct">Forventet årligt afkast (%)</label><input type="number" id="afkPct" value="${d.pct}" step="any" placeholder="fx 7"></div>
-            <div class="ak-field"><label for="afkAar">Investeringsperiode (år)</label><input type="number" id="afkAar" value="${d.aar}" min="1" step="1" placeholder="fx 20"></div>
+            <div class="ak-field"><label for="afkStart">Startbeløb (kr.)</label><input type="number" id="afkStart" value="${d.start}" min="0" step="any" inputmode="decimal" placeholder="fx 10.000"></div>
+            <div class="ak-field"><label for="afkMaanedligt">Månedligt indskud (kr.)</label><input type="number" id="afkMaanedligt" value="${d.maanedligt}" min="0" step="any" inputmode="decimal" placeholder="fx 2.000"></div>
+            <div class="ak-field"><label for="afkPct">Forventet årligt afkast (%)</label><input type="number" id="afkPct" value="${d.pct}" min="-99.9" step="any" inputmode="decimal" placeholder="fx 7"></div>
+            <div class="ak-field"><label for="afkAar">Investeringsperiode (år)</label><input type="number" id="afkAar" value="${d.aar}" min="1" max="100" step="1" inputmode="numeric" placeholder="fx 20"></div>
           </div>
         </div>
 
@@ -2019,24 +2125,56 @@
   function renderAfkastResult(){
     const panel = document.getElementById('afkResultPanel');
     if(!panel) return;
-    const start = parseFloat(document.getElementById('afkStart').value) || 0;
-    const maanedligt = parseFloat(document.getElementById('afkMaanedligt').value) || 0;
-    const pct = parseFloat(document.getElementById('afkPct').value) || 0;
-    const aar = Math.max(1, parseFloat(document.getElementById('afkAar').value) || 1);
+    const startInput = document.getElementById('afkStart').value.trim();
+    const maanedligtInput = document.getElementById('afkMaanedligt').value.trim();
+    const pctInput = document.getElementById('afkPct').value.trim();
+    const aarInput = document.getElementById('afkAar').value.trim();
+    if(!startInput && !maanedligtInput && !pctInput && !aarInput){
+      panel.innerHTML = `<div class="ak-empty-panel">Udfyld felterne ovenfor for at se beregningen.</div>`;
+      return;
+    }
+    const start = parseFloat(startInput);
+    const maanedligt = parseFloat(maanedligtInput);
+    const pct = parseFloat(pctInput);
+    const aar = parseFloat(aarInput);
 
-    const { points, finalValue, totalContributed, totalGain } = computeAfkast(start, maanedligt, pct, aar);
+    if(Number.isFinite(pct) && pct <= -100){
+      panel.innerHTML = `<div class="afk-error"><strong>Afkastet skal være højere end −100%.</strong><br>Et afkast på −100% eller lavere kan ikke omregnes til en månedlig renters-rente-sats.</div>`;
+      return;
+    }
+    if(Number.isFinite(aar) && aar > 100){
+      panel.innerHTML = `<div class="afk-error"><strong>Vælg højst 100 år.</strong><br>Det holder beregningen og diagrammet læsbart.</div>`;
+      return;
+    }
+
+    const safeStart = Number.isFinite(start) ? Math.max(0, start) : 0;
+    const safeMaanedligt = Number.isFinite(maanedligt) ? Math.max(0, maanedligt) : 0;
+    const safePct = Number.isFinite(pct) ? pct : 0;
+    const safeAar = Number.isFinite(aar) ? Math.max(1, aar) : 1;
+    const { points, finalValue, totalContributed, totalGain, years } = computeAfkast(safeStart, safeMaanedligt, safePct, safeAar);
+    if(!Number.isFinite(finalValue) || !Number.isFinite(totalGain)){
+      panel.innerHTML = `<div class="afk-error"><strong>Tallene giver et for stort resultat.</strong><br>Prøv et lavere forventet afkast eller en kortere periode.</div>`;
+      return;
+    }
+    const isGain = totalGain >= 0;
+    const gainClass = isGain ? 'pos' : 'neg';
+    const afkastAndel = finalValue > 0 ? (totalGain / finalValue) * 100 : 0;
+    const insight = isGain
+      ? `Afkastet udgør ${Math.max(0, afkastAndel).toLocaleString('da-DK', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}% af slutbeløbet.`
+      : `Det forventede negative afkast reducerer værdien med ${fmtKrHel(Math.abs(totalGain))}.`;
 
     panel.innerHTML = `
       <div class="afk-summary">
-        <div class="ak-card"><div class="ak-card-label">Slutbeløb efter ${aar} år</div><div class="ak-card-value pos">${fmtKrHel(finalValue)}</div></div>
+        <div class="ak-card"><div class="ak-card-label">Slutbeløb efter ${years.toLocaleString('da-DK', { maximumFractionDigits: 1 })} år</div><div class="ak-card-value ${gainClass}">${fmtKrHel(finalValue)}</div></div>
         <div class="ak-card"><div class="ak-card-label">Samlet indskudt</div><div class="ak-card-value">${fmtKrHel(totalContributed)}</div></div>
-        <div class="ak-card"><div class="ak-card-label">Samlet afkast</div><div class="ak-card-value pos">${fmtKrHel(totalGain)}</div></div>
+        <div class="ak-card"><div class="ak-card-label">Samlet afkast</div><div class="ak-card-value ${gainClass}">${fmtKrHel(totalGain)}</div></div>
       </div>
+      <div class="ak-carry-note"><strong>${insight}</strong> Månedlige indskud regnes ved månedens slutning.</div>
       <div class="afk-chart-legend">
-        <span><span class="afk-dot" style="background:var(--green);"></span> Samlet formue</span>
+        <span><span class="afk-dot" style="background:${isGain ? 'var(--green)' : 'var(--red)'};"></span> Samlet formue</span>
         <span><span class="afk-dot dashed"></span> Indskudt i alt</span>
       </div>
-      ${buildAfkastChartSvg(points)}
+      ${buildAfkastChartSvg(points, isGain)}
     `;
   }
 
@@ -2049,11 +2187,14 @@
           pct: document.getElementById('afkPct').value,
           aar: document.getElementById('afkAar').value
         };
-        save();
+        // Resultatet opdateres straks, mens Firebase-gemning samles i ét kald.
+        clearTimeout(afkastSaveTimer);
+        afkastSaveTimer = setTimeout(save, 400);
         renderAfkastResult();
       });
     });
     document.getElementById('afkResetBtn').addEventListener('click', () => {
+      clearTimeout(afkastSaveTimer);
       state.afkast = { start: '', maanedligt: '', pct: '', aar: '' };
       save();
       renderBloedt();
@@ -2065,6 +2206,7 @@
   let sogQuery = '';
   let sogYear = 'alle';
   let sogType = 'alle';
+  let sogDepot = 'alle';
   let sogMaegler = 'alle';
   let sogSort = 'nyeste';
 
@@ -2082,14 +2224,17 @@
       const matchQuery = q === '' || (s.navn || '').toLowerCase().includes(q) || (s.ticker || '').toLowerCase().includes(q);
       const matchYear = sogYear === 'alle' || s.aar === parseInt(sogYear);
       const matchType = sogType === 'alle' || s.type === sogType;
+      const matchDepot = sogDepot === 'alle' || (sogDepot === 'ask' ? s.satsmode === 'ask' : s.satsmode !== 'ask');
       const matchMaegler = sogMaegler === 'alle' || (s.maegler || 'Ikke angivet') === sogMaegler;
-      return matchQuery && matchYear && matchType && matchMaegler;
+      return matchQuery && matchYear && matchType && matchDepot && matchMaegler;
     });
     filtered.sort((a, b) => {
       if(sogSort === 'nyeste') return b.aar - a.aar || (b.salgDato || '').localeCompare(a.salgDato || '');
       if(sogSort === 'aeldste') return a.aar - b.aar || (a.salgDato || '').localeCompare(b.salgDato || '');
       if(sogSort === 'stoerst-gevinst') return b.gevinst - a.gevinst;
       if(sogSort === 'stoerst-tab') return a.gevinst - b.gevinst;
+      if(sogSort === 'depot-almindeligt') return Number(a.satsmode === 'ask') - Number(b.satsmode === 'ask') || b.aar - a.aar || (b.salgDato || '').localeCompare(a.salgDato || '');
+      if(sogSort === 'depot-ask') return Number(b.satsmode === 'ask') - Number(a.satsmode === 'ask') || b.aar - a.aar || (b.salgDato || '').localeCompare(a.salgDato || '');
       if(sogSort === 'maegler-az') return (a.maegler || 'Ikke angivet').localeCompare(b.maegler || 'Ikke angivet', 'da');
       if(sogSort === 'maegler-za') return (b.maegler || 'Ikke angivet').localeCompare(a.maegler || 'Ikke angivet', 'da');
       return 0;
@@ -2132,6 +2277,14 @@
               </select>
             </div>
             <div class="ak-field">
+              <label for="sogDepotSelect">Depot</label>
+              <select id="sogDepotSelect">
+                <option value="alle" ${sogDepot === 'alle' ? 'selected' : ''}>Alle depoter</option>
+                <option value="almindeligt" ${sogDepot === 'almindeligt' ? 'selected' : ''}>Almindeligt</option>
+                <option value="ask" ${sogDepot === 'ask' ? 'selected' : ''}>ASK</option>
+              </select>
+            </div>
+            <div class="ak-field">
               <label for="sogMaeglerSelect">Mægler</label>
               <select id="sogMaeglerSelect">
                 <option value="alle" ${sogMaegler === 'alle' ? 'selected' : ''}>Alle mæglere</option>
@@ -2145,6 +2298,8 @@
                 <option value="aeldste" ${sogSort === 'aeldste' ? 'selected' : ''}>Ældste år først</option>
                 <option value="stoerst-gevinst" ${sogSort === 'stoerst-gevinst' ? 'selected' : ''}>Størst gevinst</option>
                 <option value="stoerst-tab" ${sogSort === 'stoerst-tab' ? 'selected' : ''}>Størst tab</option>
+                <option value="depot-almindeligt" ${sogSort === 'depot-almindeligt' ? 'selected' : ''}>Depot · almindeligt først</option>
+                <option value="depot-ask" ${sogSort === 'depot-ask' ? 'selected' : ''}>Depot · ASK først</option>
                 <option value="maegler-az" ${sogSort === 'maegler-az' ? 'selected' : ''}>Mægler A–Å</option>
                 <option value="maegler-za" ${sogSort === 'maegler-za' ? 'selected' : ''}>Mægler Å–A</option>
               </select>
@@ -2171,6 +2326,7 @@
     inputEl.addEventListener('input', () => { sogQuery = inputEl.value; renderSogListOnly(); });
     document.getElementById('sogYearSelect').addEventListener('change', (e) => { sogYear = e.target.value; renderBloedt(); });
     document.getElementById('sogTypeSelect').addEventListener('change', (e) => { sogType = e.target.value; renderBloedt(); });
+    document.getElementById('sogDepotSelect').addEventListener('change', (e) => { sogDepot = e.target.value; renderBloedt(); });
     document.getElementById('sogMaeglerSelect').addEventListener('change', (e) => { sogMaegler = e.target.value; renderBloedt(); });
     document.getElementById('sogSortSelect').addEventListener('change', (e) => { sogSort = e.target.value; renderBloedt(); });
     wireSogListButtons();
@@ -2236,14 +2392,16 @@
                 <div class="ak-field"><label for="navn">Navn på værdipapir</label><input type="text" id="navn" placeholder="Udfyldes automatisk — kan rettes manuelt"></div>
               </div>
               <div class="ak-field-row">
-                <div class="ak-field"><label for="satsmode">Konto og beskatning</label>
+                <div class="ak-field"><label for="satsmode">Depot</label>
                   <select id="satsmode">
-                    <option value="auto">Almindeligt depot – automatisk 27/42%</option>
-                    <option value="27">Almindeligt depot – fast 27%</option>
-                    <option value="42">Almindeligt depot – fast 42%</option>
-                    <option value="ask">Aktiesparekonto – separat 17%</option>
+                    <option value="auto">Almindeligt depot</option>
+                    <option value="ask">Aktiesparekonto (ASK)</option>
+                    <optgroup label="Avanceret – fast sats">
+                      <option value="27">Fast 27%</option>
+                      <option value="42">Fast 42%</option>
+                    </optgroup>
                   </select>
-                  <div class="ak-tax-choice-note" id="taxChoiceNote">Vælg hvilken konto salget hører til. ASK holdes helt adskilt fra det almindelige depot.</div>
+                  <div class="ak-tax-choice-note" id="taxChoiceNote">Automatisk 27/42% efter årets grænse.</div>
                 </div>
                 <div class="ak-field"><label for="maegler">Mægler</label>
                   <select id="maegler">${brokerOptionsHtml()}</select>
@@ -2258,8 +2416,6 @@
                   <select id="valuta">${valutaOptionsHtml()}</select>
                 </div>
               </div>
-              <div class="ak-ask-note" id="askNote" style="display:none;">ASK-salget vises i sin egen fane og påvirker ikke 27/42%-grænsen eller fremført tab på dit almindelige depot. Den viste 17%-skat er vejledende, da banken opgør ASK efter lagerprincippet.</div>
-
               <div class="ak-section-label">Køb (én eller flere omgange)</div>
               <div id="lotsArea" class="ak-lots-area"></div>
               <button type="button" class="ak-ghostbtn" id="addLotBtn">+ Tilføj endnu et køb</button>
@@ -2354,12 +2510,40 @@
     const netto = s.gevinst - s.skat;
     const resultatOrd = isGain ? 'gevinst' : 'tab';
     const skattelabel = isAsk ? 'Vejledende ASK-skat' : 'Beregnet skat';
-    const nativeGak = gakValuta ? fmtValuta(gakValuta.gak, s.valuta) + (gakValuta.komplet ? '' : ' · delvis') : 'Ikke beregnet';
+    const nativeGak = gakValuta ? fmtValuta(gakValuta.gak, s.valuta) + (gakValuta.komplet ? '' : ' · delvis') : (s.valuta === 'DKK' ? fmtKr(s.gak) : 'Ikke beregnet');
+
+    const antalSolgt = parseFloat(s.antalSolgt) || 0;
+    const salgRate = s.valuta === 'DKK' ? 1 : (parseFloat(s.salgRate) || 0);
+    let salgskursValuta = 0;
+    let salgskursDkk = 0;
+    if((s.salgMode || 'kurs') === 'dkk'){
+      const bruttoDkk = parseFloat(s.salgBelobDkk) || 0;
+      salgskursDkk = antalSolgt > 0 ? bruttoDkk / antalSolgt : 0;
+      salgskursValuta = s.valuta === 'DKK' ? salgskursDkk : (salgRate > 0 ? salgskursDkk / salgRate : 0);
+    } else {
+      salgskursValuta = parseFloat(s.salgskurs) || 0;
+      salgskursDkk = salgskursValuta * salgRate;
+    }
+    const salgskursValutaTekst = salgskursValuta > 0 ? fmtValuta(salgskursValuta, s.valuta) : 'Ikke registreret';
+    const salgskursDkkTekst = salgskursDkk > 0 ? fmtKr(salgskursDkk) : 'Ikke beregnet';
+    const antalTekst = antalSolgt.toLocaleString('da-DK', { maximumFractionDigits: 6 }) + ' stk.';
+    const koebKursRows = s.valuta === 'DKK'
+      ? [['Gennemsnitskurs i DKK', fmtKr(s.gak)]]
+      : [[`Gennemsnitskurs i ${s.valuta}`, nativeGak], ['Gennemsnitskurs i DKK', fmtKr(s.gak)]];
+    const salgKursRows = s.valuta === 'DKK'
+      ? [['Salgskurs i DKK', salgskursDkkTekst]]
+      : [[`Salgskurs i ${s.valuta}`, salgskursValutaTekst], ['Salgskurs i DKK', salgskursDkkTekst]];
 
     const infoRows = rows => rows.map(([label, value]) => `
       <div class="ak-details-info-row">
         <span class="ak-details-info-label">${escapeHtml(label)}</span>
         <span class="ak-details-info-value">${escapeHtml(String(value))}</span>
+      </div>`).join('');
+
+    const tradeRows = rows => rows.map(([label, value]) => `
+      <div class="ak-details-trade-row">
+        <span class="ak-details-trade-label">${escapeHtml(label)}</span>
+        <span class="ak-details-trade-value">${escapeHtml(String(value))}</span>
       </div>`).join('');
 
     return `
@@ -2376,23 +2560,47 @@
           </div>
         </div>
 
+        ${s.ticker ? `<div class="ak-details-top-actions"><a class="ak-details-price-link" href="${escapeHtml(googleKursUrl(s))}" target="_blank" rel="noopener">${iconExternal()} Tjek den aktuelle kurs på Google</a></div>` : ''}
+
         <div class="ak-details-story">
           <span aria-hidden="true">💡</span>
           <span>Handlen gav et <strong>${resultatOrd} på ${fmtKr(Math.abs(s.gevinst))}</strong> svarende til <strong>${pctStr}</strong>. Efter den viste skatteberegning er resultatet <strong>${fmtKr(netto)}</strong>.</span>
         </div>
 
-        <div class="ak-details-flow">
-          <div class="ak-details-flow-card">
-            <div class="ak-details-flow-label">Købt for</div>
-            <div class="ak-details-flow-value">${fmtKr(s.kobsbelob)}</div>
-            <div class="ak-details-flow-sub">Første registrerede køb: ${foersteKoeb}</div>
-          </div>
-          <div class="ak-details-flow-arrow" aria-hidden="true">→</div>
-          <div class="ak-details-flow-card">
-            <div class="ak-details-flow-label">Solgt for</div>
-            <div class="ak-details-flow-value">${fmtKr(s.salgsbelob)}</div>
-            <div class="ak-details-flow-sub">Salgsdato: ${formatDatoDa(s.salgDato)}</div>
-          </div>
+        <div class="ak-details-trade-grid">
+          <section class="ak-details-trade-card purchase">
+            <div class="ak-details-trade-head">
+              <div class="ak-details-trade-title"><span class="ak-details-trade-icon">K</span>Køb</div>
+              <span class="ak-details-trade-date">${foersteKoeb}</span>
+            </div>
+            <div class="ak-details-trade-primary">
+              <div class="ak-details-trade-primary-label">Kostpris for de solgte aktier</div>
+              <div class="ak-details-trade-primary-value">${fmtKr(s.kobsbelob)}</div>
+            </div>
+            <div class="ak-details-trade-rows">
+              ${tradeRows([
+                ['Antal', antalTekst],
+                ...koebKursRows
+              ])}
+            </div>
+          </section>
+
+          <section class="ak-details-trade-card sale">
+            <div class="ak-details-trade-head">
+              <div class="ak-details-trade-title"><span class="ak-details-trade-icon">S</span>Salg</div>
+              <span class="ak-details-trade-date">${formatDatoDa(s.salgDato)}</span>
+            </div>
+            <div class="ak-details-trade-primary">
+              <div class="ak-details-trade-primary-label">Salgsbeløb efter omkostninger</div>
+              <div class="ak-details-trade-primary-value">${fmtKr(s.salgsbelob)}</div>
+            </div>
+            <div class="ak-details-trade-rows">
+              ${tradeRows([
+                ['Antal', antalTekst],
+                ...salgKursRows
+              ])}
+            </div>
+          </section>
         </div>
 
         <div class="ak-details-summary">
@@ -2403,27 +2611,18 @@
 
         <div class="ak-details-groups">
           <section class="ak-details-group">
-            <div class="ak-details-group-title">Antal og kurser</div>
-            ${infoRows([
-              ['Antal solgt', `${(parseFloat(s.antalSolgt) || 0).toLocaleString('da-DK', { maximumFractionDigits: 6 })} stk.`],
-              ['Købt i alt', `${(parseFloat(s.totalKobtAntal) || 0).toLocaleString('da-DK', { maximumFractionDigits: 6 })} stk.`],
-              ['GAK i DKK', fmtKr(s.gak)],
-              ...(s.valuta !== 'DKK' ? [[`GAK i ${s.valuta}`, nativeGak]] : [])
-            ])}
-          </section>
-          <section class="ak-details-group">
-            <div class="ak-details-group-title">Depot og skat</div>
+            <div class="ak-details-group-title">Konto og registrering</div>
             ${infoRows([
               ['Konto', isAsk ? 'Aktiesparekonto' : 'Almindeligt depot'],
               ['Beskatning', satsLabel],
               ['Mægler', s.maegler || 'Ikke angivet'],
               ['Valuta', s.valuta || 'DKK'],
+              ['Købt i alt', `${(parseFloat(s.totalKobtAntal) || 0).toLocaleString('da-DK', { maximumFractionDigits: 6 })} stk.`],
               ['Holdetid', beregnHoldetid(s)]
             ])}
           </section>
         </div>
 
-        ${s.ticker ? `<a class="ak-details-price-link" href="${escapeHtml(googleKursUrl(s))}" target="_blank" rel="noopener">${iconExternal()} Tjek den aktuelle kurs på Google</a>` : ''}
         <div class="ak-details-section-title">Registrerede køb</div>
         <div class="ak-details-lots">${lotsHtml}</div>
       </div>
@@ -2442,11 +2641,15 @@
     content.innerHTML = renderSaleDetailsContent(sale);
     overlay.classList.add('open');
     overlay.setAttribute('aria-hidden', 'false');
+    lockBackgroundScroll();
     wireBackdropClose(overlay, closeSaleDetails);
     document.getElementById('saleDetailsClose').addEventListener('click', closeSaleDetails);
     document.getElementById('saleDetailsCloseFooter').addEventListener('click', closeSaleDetails);
     document.getElementById('saleDetailsEdit').addEventListener('click', () => {
       const id = detailsSaleId;
+      // Skjul faktavinduet, men behold baggrundslåsen, mens redigeringsvinduet åbnes.
+      overlay.classList.remove('open');
+      overlay.setAttribute('aria-hidden', 'true');
       detailsSaleId = null;
       openModal(id);
     });
@@ -2459,6 +2662,7 @@
       overlay.classList.remove('open');
       overlay.setAttribute('aria-hidden', 'true');
     }
+    unlockBackgroundScroll();
     detailsSaleId = null;
   }
 
@@ -2695,13 +2899,16 @@
     const previewEl = document.getElementById('modalPreview');
     if(!previewEl) return;
     const isAsk = draft.satsmode === 'ask';
-    const askNoteEl = document.getElementById('askNote');
-    if(askNoteEl) askNoteEl.style.display = isAsk ? 'block' : 'none';
     const taxChoiceNoteEl = document.getElementById('taxChoiceNote');
     if(taxChoiceNoteEl){
+      taxChoiceNoteEl.classList.toggle('ask', isAsk);
       taxChoiceNoteEl.textContent = isAsk
-        ? 'ASK holdes helt adskilt fra dit almindelige depot. Den viste 17%-skat er vejledende, fordi banken opgør kontoen efter lagerprincippet.'
-        : 'Salget indgår i dit almindelige depot og i årets samlede 27/42%-beregning samt eventuelt fremført tab.';
+        ? 'Separat 17% · vejledende ASK-beregning.'
+        : draft.satsmode === '27'
+          ? 'Fast 27% på denne handel.'
+          : draft.satsmode === '42'
+            ? 'Fast 42% på denne handel.'
+            : 'Automatisk 27/42% efter årets grænse.';
     }
 
     if(totalAntal <= 0 || draft.antalSolgt <= 0 || !salgBeloebUdfyldt(draft)){
@@ -2870,7 +3077,7 @@
       document.getElementById('salgDato').value = '';
       document.getElementById('antalSolgt').value = '';
       document.getElementById('salgsomk').value = '0';
-      document.getElementById('satsmode').value = activeDepotView === 'ask' ? 'ask' : 'auto';
+      document.getElementById('satsmode').value = 'auto';
       draftLots = [{ dato: '', antal: '', kurs: '', rate: '1', mode: 'dkk', totalDkk: '', komk: '0' }];
       draftSalgMode = 'dkk';
       draftSalgBelobDkk = '';
@@ -2880,11 +3087,12 @@
     }
     const modalOverlay = document.getElementById('modalOverlay');
     modalOverlay.classList.add('open');
+    lockBackgroundScroll();
     wireFreeModalScroll(modalOverlay);
     updatePreview();
   }
 
-  function closeModal(){ document.getElementById('modalOverlay').classList.remove('open'); editingId = null; }
+  function closeModal(){ document.getElementById('modalOverlay').classList.remove('open'); unlockBackgroundScroll(); editingId = null; }
 
   function saveModal(){
     const draft = buildDraftSale();
@@ -2917,6 +3125,7 @@
     save();
     activeYear = draft.aar;
     editingId = null;
+    unlockBackgroundScroll();
     render();
   }
 
