@@ -544,10 +544,11 @@
 
   /* Hurtige salgsdetaljer */
   .ak-sale-details-modal {
-    width: min(680px, 100%); max-height: 92vh; overflow: hidden; display: flex; flex-direction: column;
+    width: min(680px, 100%); max-height: min(92vh, calc(100dvh - 20px)); overflow: hidden; display: flex; flex-direction: column;
     background: var(--card); border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 24px 60px var(--modal-shadow);
   }
-  .ak-sale-details-body { padding: 20px; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; }
+  #saleDetailsContent { display: flex; flex-direction: column; min-height: 0; height: 100%; }
+  .ak-sale-details-body { flex: 1 1 auto; min-height: 0; padding: 20px; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; }
   .ak-details-hero { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 18px; }
   .ak-details-hero .ak-company-logo-wrap { width: 46px; height: 46px; border-radius: 12px; }
   .ak-details-return { text-align: right; flex-shrink: 0; }
@@ -577,7 +578,11 @@
   .ak-details-lot-date { color: var(--text-muted); }
   .ak-details-lot-main { color: var(--text); font-weight: 700; }
   .ak-details-lot-amount { font-family: 'Inconsolata', monospace; font-weight: 700; color: var(--text); white-space: nowrap; }
-  .ak-sale-details-footer { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 20px; border-top: 1px solid var(--border); }
+  .ak-sale-details-footer {
+    position: sticky; bottom: 0; z-index: 3; flex: 0 0 auto; display: flex; justify-content: flex-end; gap: 8px;
+    padding: 12px 20px calc(12px + env(safe-area-inset-bottom)); border-top: 1px solid var(--border);
+    background: var(--card); box-shadow: 0 -10px 22px rgba(0,0,0,0.08);
+  }
   @media (max-width: 560px) {
     .ak-details-summary { grid-template-columns: 1fr; }
     .ak-details-facts { grid-template-columns: 1fr; }
@@ -586,6 +591,8 @@
     .ak-details-fact:last-child { border-bottom: none; }
     .ak-details-lot { grid-template-columns: 1fr auto; }
     .ak-details-lot-date { grid-column: 1 / -1; }
+    .ak-sale-details-footer { padding-left: 14px; padding-right: 14px; }
+    .ak-sale-details-footer .ak-submit-btn { flex: 1 1 auto !important; }
   }
 
 
