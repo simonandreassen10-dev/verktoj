@@ -1,30 +1,19 @@
-VÆRKTØJER – INSTALLATION SOM APP
+AKTIEVÆRKTØJ – INSTALLATION
 
-Filerne index.html, manifest.json, service-worker.js, icon-192.png og icon-512.png skal ligge i samme mappe på din hjemmeside.
+Upload alle filer i denne mappe samlet til samme HTTPS-mappe:
+- index.html
+- manifest.json
+- service-worker.js
+- icon-192.png
+- icon-512.png
 
-Vigtigt:
-- App-installation virker kun via HTTPS (eller localhost under udvikling).
-- Åbn siden én gang efter upload, så service worker og manifest registreres.
+Nyheder i version 5:
+- Fri scrolling i hele Tilføj/Rediger salg-vinduet, uanset hvor musen står.
+- Købslisten fanger ikke længere musehjulet med sin egen scrollbar.
+- Tilføj/Rediger salg lukker fortsat ikke ved klik udenfor.
+- Indstillinger og Hurtige fakta kan nu lukkes med et rent klik udenfor.
+- Træk eller tekstmarkering fra dialogen og ud på baggrunden lukker ikke dialogen.
+- Skatteår står centreret i en tydelig, selvstændig boks.
 
-Windows / Android (Chrome eller Edge):
-1. Åbn hjemmesiden.
-2. Tryk på tandhjulet i appen.
-3. Vælg “Installér som app”.
-   Du kan også bruge browserens menu → Installér app.
-
-iPhone / iPad:
-1. Åbn hjemmesiden i Safari.
-2. Tryk på Del-ikonet.
-3. Vælg “Føj til hjemmeskærm”.
-
-Tickeropslag:
-- Skriv tickerkoden, fx AAPL, NOVO-B.CO eller WEBN.DE.
-- Navnet udfyldes automatisk, når opslagstjenesten kan finde tickeren.
-- Hvis et opslag fejler, kan navnet stadig skrives manuelt.
-
-
-Opdatering v3:
-- Ensartede gevinst/skat/efter skat-felter
-- Blød sidebar-animation
-- Klikbare salg med hurtige fakta
-- Forbedret mobilvisning
+Ved opdatering kan browseren kortvarigt vise den gamle version. Genindlæs siden,
+eller luk og åbn den installerede app igen. Service-workerens cache er ændret til v5.

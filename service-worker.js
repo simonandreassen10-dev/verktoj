@@ -1,4 +1,4 @@
-const CACHE_NAME = 'vaerktojer-app-v3';
+const CACHE_NAME = 'vaerktojer-app-v5';
 const APP_SHELL = [
   './',
   './index.html',
