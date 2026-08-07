@@ -248,6 +248,8 @@
   .ak-broker-add-btn:hover { background: var(--primary-btn-hover); }
   .ak-undo-btn-secondary { top: 74px; }
   @media (max-width: 780px) { .ak-undo-btn-secondary { top: 62px; } }
+  .ak-undo-btn-tertiary { top: 130px; background: var(--navy); }
+  @media (max-width: 780px) { .ak-undo-btn-tertiary { top: 106px; } }
 
   /* Hele salgsformularen bruger nu den samme scrollbar, så musehjulet ikke fanges i køb-listen. */
   .ak-lots-area { max-height: none; overflow: visible; padding-right: 0; margin-right: 0; }
@@ -689,6 +691,67 @@
   .afk-chart-legend { display: flex; gap: 18px; font-size: 11.5px; color: var(--text-muted); margin-bottom: 10px; align-items: center; flex-wrap: wrap; }
   .afk-dot { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: middle; background: var(--green); }
   .afk-dot.dashed { background: none; border-top: 2px dashed var(--text-faint); width: 12px; height: 0; border-radius: 0; }
+
+  .pf-top-row { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; }
+  .pf-avg-card { flex: 1 1 220px; background: var(--navy); border-radius: 10px; padding: 16px 18px; color: #fff; }
+  .pf-avg-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.75; font-weight: 700; margin-bottom: 6px; }
+  .pf-avg-value { font-family: 'Inconsolata', monospace; font-size: 24px; font-weight: 800; line-height: 1.1; }
+  .pf-avg-pct { font-family: 'Inconsolata', monospace; font-size: 13px; font-weight: 700; opacity: 0.9; margin-top: 3px; }
+  .pf-year-summary { flex: 2 1 280px; display: flex; flex-direction: column; justify-content: center; gap: 6px; background: var(--entry-bg); border: 1px solid var(--border); border-radius: 10px; padding: 10px 16px; }
+  .pf-year-summary-row { display: flex; align-items: center; gap: 14px; font-family: 'Inconsolata', monospace; font-size: 13px; }
+  .pf-year-summary-aar { font-weight: 700; color: var(--text); flex: 0 0 44px; }
+  .pf-year-summary-kr { flex: 1; font-weight: 700; }
+  .pf-year-summary-pct { flex: 0 0 auto; font-weight: 700; }
+  .pf-desc-stats { border: 1px solid var(--border); border-radius: 10px; margin-top: 14px; overflow: hidden; }
+  .pf-desc-stats-header {
+    width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    background: var(--entry-bg); border: none; cursor: pointer;
+    padding: 9px 14px; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;
+    color: var(--text-muted); font-family: 'Inter', sans-serif;
+  }
+  .pf-desc-stats-arrow { display: inline-block; color: var(--text-faint); font-size: 11px; transition: transform 0.2s ease; }
+  .pf-desc-stats-arrow.open { transform: rotate(90deg); }
+  .pf-desc-collapse { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.28s cubic-bezier(0.16, 1, 0.3, 1); }
+  .pf-desc-collapse.open { grid-template-rows: 1fr; }
+  .pf-desc-collapse-inner { overflow: hidden; min-height: 0; }
+  .pf-desc-grid { display: grid; grid-template-columns: 1fr 1fr; }
+  .pf-desc-item { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 9px 14px; border-top: 1px solid var(--border); font-size: 12.5px; color: var(--text-muted); }
+  .pf-desc-item:nth-child(-n+2) { border-top: none; }
+  .pf-desc-item:nth-child(odd) { border-right: 1px solid var(--border); }
+  .pf-desc-item strong { font-family: 'Inconsolata', monospace; color: var(--text); font-size: 14px; font-weight: 700; white-space: nowrap; }
+  .pf-desc-item strong.pos { color: var(--green); }
+  .pf-desc-item strong.neg { color: var(--red); }
+  .pf-stat-row-modal { display: flex; justify-content: space-between; align-items: baseline; padding: 8px 0; border-top: 1px solid var(--border); font-size: 13px; color: var(--text-muted); }
+  .pf-stat-row-modal strong { font-family: 'Inconsolata', monospace; color: var(--text); font-weight: 700; }
+  .pf-stat-row-modal strong.pos { color: var(--green); }
+  .pf-stat-row-modal strong.neg { color: var(--red); }
+  @media (max-width: 480px) {
+    .pf-desc-grid { grid-template-columns: 1fr; }
+    .pf-desc-item:nth-child(-n+2) { border-top: 1px solid var(--border); }
+    .pf-desc-item:first-child { border-top: none; }
+    .pf-desc-item:nth-child(odd) { border-right: none; }
+  }
+
+  .pf-table-wrap { overflow-x: auto; }
+  .pf-table { width: 100%; border-collapse: collapse; min-width: 560px; }
+  .pf-table th { text-align: left; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-faint); font-weight: 700; padding: 6px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  .pf-table td { padding: 4px 10px; border-bottom: 1px solid var(--border); font-size: 13px; vertical-align: middle; }
+  .pf-year-cell { font-weight: 800; color: var(--text); vertical-align: top; padding-top: 10px; font-size: 15px; cursor: pointer; border-radius: 6px; }
+  .pf-year-cell:hover { color: var(--navy); text-decoration: underline; }
+  .pf-row-year-start td { border-top: 2px solid var(--navy); }
+  .pf-row:first-child td { border-top: none; }
+  .pf-note { font-size: 11px; color: var(--text-faint); margin-top: 1px; font-style: italic; }
+  .pf-row { cursor: pointer; transition: background 0.1s ease; }
+  .pf-row:hover td:not(.pf-year-cell), .pf-row:focus-visible td:not(.pf-year-cell) { background: var(--hover); outline: none; }
+  .pf-num { font-family: 'Inconsolata', monospace; color: var(--text-muted); }
+  .pf-change-kr, .pf-change-pct { font-family: 'Inconsolata', monospace; font-weight: 700; white-space: nowrap; }
+  .pf-change-kr.pos, .pf-change-pct.pos { color: var(--green); }
+  .pf-change-kr.neg, .pf-change-pct.neg { color: var(--red); }
+  .pf-change-empty { color: var(--text-faint); font-weight: 400; }
+  @media (max-width: 600px) {
+    .pf-avg-value { font-size: 20px; }
+    .pf-year-summary-row { flex-wrap: wrap; gap: 4px 14px; }
+  }
   .afk-chart-svg { width: 100%; height: auto; display: block; }
   .afk-error { padding: 16px; border: 1px solid color-mix(in srgb, var(--red) 35%, var(--border)); background: var(--soft-red); border-radius: 10px; color: var(--red); font-size: 12.5px; line-height: 1.55; }
 
@@ -781,6 +844,7 @@
           customCurrencies: d.customCurrencies || [],
           brokers: Array.isArray(d.brokers) ? d.brokers : null,
           afkast: d.afkast || null,
+          portefolje: Array.isArray(d.portefolje) ? d.portefolje : [],
           gammeltArkImporteret: !!d.gammeltArkImporteret
         };
         if(!state.brokers){
@@ -788,12 +852,12 @@
           await setDoc(stateDocRef(), state);
         }
       } else {
-        state = { sales: [], andenPerYear: {}, gift: false, extraYears: [], customCurrencies: [], brokers: DEFAULT_BROKERS.slice(), afkast: null, gammeltArkImporteret: false };
+        state = { sales: [], andenPerYear: {}, gift: false, extraYears: [], customCurrencies: [], brokers: DEFAULT_BROKERS.slice(), afkast: null, portefolje: [], gammeltArkImporteret: false };
         await setDoc(stateDocRef(), state);
       }
     } catch(e) {
       console.error('Kunne ikke hente data', e);
-      state = { sales: [], andenPerYear: {}, gift: false, extraYears: [], customCurrencies: [], brokers: DEFAULT_BROKERS.slice(), afkast: null, gammeltArkImporteret: false };
+      state = { sales: [], andenPerYear: {}, gift: false, extraYears: [], customCurrencies: [], brokers: DEFAULT_BROKERS.slice(), afkast: null, portefolje: [], gammeltArkImporteret: false };
     }
     indlaeserData = false;
     render();
@@ -1795,6 +1859,9 @@
             <button class="dash-collapse-btn tip-right" id="sidebarToggleBtn" data-tip="${sidebarCollapsed ? 'Fold menu ud' : 'Fold menu sammen'}">${sidebarCollapsed ? '›' : '‹'}</button>
           </div>
           <nav class="dash-nav">
+            <button class="dash-nav-item tip-right ${currentView === 'portefolje' ? 'active' : ''}" data-view="portefolje" ${sidebarCollapsed ? 'data-tip="Månedsopdatering"' : ''}>
+              <span class="dash-nav-icon">📊</span><span class="dash-nav-label">Månedsopdatering</span>
+            </button>
             <button class="dash-nav-item tip-right ${currentView === 'aktiesalg' ? 'active' : ''}" data-view="aktiesalg" ${sidebarCollapsed ? 'data-tip="Aktiesalg & skat"' : ''}>
               <span class="dash-nav-icon">📈</span><span class="dash-nav-label">Aktiesalg &amp; skat</span>
             </button>
@@ -1814,16 +1881,20 @@
           </div>
         </aside>
         <main class="dash-content">
-          ${currentView === 'aktiesalg' ? renderAktiesalgContent() : currentView === 'sog' ? renderSogContent() : renderAfkastContent()}
+          ${currentView === 'aktiesalg' ? renderAktiesalgContent() : currentView === 'sog' ? renderSogContent() : currentView === 'afkast' ? renderAfkastContent() : renderPortefoljeContent()}
         </main>
       </div>
 
       ${renderModalShell()}
       ${renderSaleDetailsModal()}
       ${renderSettingsModal()}
+      ${renderPfModal()}
+      ${renderPfYearModal()}
       ${renderThemeToggle()}
       ${renderUndoToast()}
       <div id="brokerToastContainer">${renderBrokerUndoToast()}</div>
+      <div id="pfToastContainer">${renderPfUndoToast()}</div>
+      <div id="pfReminderToastContainer">${renderPfReminderToast()}</div>
     `;
 
     document.querySelectorAll('.dash-nav-item').forEach(btn => btn.addEventListener('click', () => {
@@ -1854,7 +1925,8 @@
 
     if(currentView === 'aktiesalg') wireAktiesalgView();
     else if(currentView === 'sog') wireSogView();
-    else wireAfkastView();
+    else if(currentView === 'afkast') wireAfkastView();
+    else wirePortefoljeView();
 
     if(document.getElementById('modalOverlay').classList.contains('open')) wireModalInputs();
   }
@@ -2207,6 +2279,509 @@
       renderBloedt();
     });
     renderAfkastResult();
+  }
+
+  // ============ PORTEFØLJE VIEW ============
+  const MAANEDSNAVNE = ['Januar','Februar','Marts','April','Maj','Juni','Juli','August','September','Oktober','November','December'];
+  let pendingPfDelete = null;
+  let pendingPfDeleteTimer = null;
+  let pfEditingKey = null;
+  let pfStatsOpen = true;
+
+  function computePortefoljeRows(){
+    const log = Array.isArray(state.portefolje) ? state.portefolje : [];
+    const rows = log.slice().sort((a, b) => a.aar - b.aar || a.maaned - b.maaned).map(e => ({
+      aar: e.aar, maaned: e.maaned,
+      vaerdi: Number.isFinite(e.vaerdi) ? e.vaerdi : null,
+      indskud: Number.isFinite(e.indskud) ? e.indskud : null,
+      note: e.note || null
+    }));
+    let prevVaerdi = null;
+    rows.forEach(r => {
+      if(r.vaerdi != null){
+        if(prevVaerdi != null){
+          const indskud = r.indskud || 0;
+          const endringKr = r.vaerdi - prevVaerdi - indskud;
+          const basis = prevVaerdi + indskud;
+          r.endringKr = endringKr;
+          r.endringPct = basis !== 0 ? (endringKr / basis) * 100 : null;
+        } else {
+          r.endringKr = null; r.endringPct = null;
+        }
+        prevVaerdi = r.vaerdi;
+      } else {
+        r.endringKr = null; r.endringPct = null;
+      }
+    });
+    return rows;
+  }
+
+  function computePortefoljeStats(rows){
+    const filled = rows.filter(r => r.endringKr != null);
+    const perYear = {};
+    filled.forEach(r => {
+      if(!perYear[r.aar]) perYear[r.aar] = { sumKr: 0, faktor: 1, count: 0 };
+      perYear[r.aar].sumKr += r.endringKr;
+      perYear[r.aar].faktor *= (1 + (r.endringPct || 0) / 100);
+      perYear[r.aar].count++;
+    });
+    const aarListe = Object.keys(perYear).map(Number).sort((a, b) => a - b).map(aar => ({
+      aar, sumKr: perYear[aar].sumKr, pct: (perYear[aar].faktor - 1) * 100
+    }));
+    const avgKr = filled.length ? filled.reduce((s, r) => s + r.endringKr, 0) / filled.length : 0;
+    const avgPct = filled.length ? filled.reduce((s, r) => s + (r.endringPct || 0), 0) / filled.length : 0;
+    const bedste = filled.length ? filled.reduce((a, b) => b.endringKr > a.endringKr ? b : a) : null;
+    const vaerste = filled.length ? filled.reduce((a, b) => b.endringKr < a.endringKr ? b : a) : null;
+
+    const medVaerdi = rows.filter(r => r.vaerdi != null);
+    const medIndskud = rows.filter(r => r.indskud != null);
+    const antalMaaneder = rows.length;
+    const gnsIndskud = medIndskud.length ? medIndskud.reduce((s, r) => s + r.indskud, 0) / medIndskud.length : 0;
+    const maxVaerdi = medVaerdi.length ? Math.max(...medVaerdi.map(r => r.vaerdi)) : 0;
+    const groenneMdr = filled.filter(r => r.endringKr >= 0).length;
+    const roedeMdr = filled.filter(r => r.endringKr < 0).length;
+    const totalIndskud = medIndskud.reduce((s, r) => s + r.indskud, 0);
+    const totalAfkast = filled.reduce((s, r) => s + r.endringKr, 0);
+    const totalVaekst = medVaerdi.length > 1 ? medVaerdi[medVaerdi.length - 1].vaerdi - medVaerdi[0].vaerdi : 0;
+
+    return {
+      aarListe, avgKr, avgPct, bedste, vaerste, harData: filled.length > 0,
+      antalMaaneder, gnsIndskud, maxVaerdi, groenneMdr, roedeMdr, totalIndskud, totalAfkast, totalVaekst
+    };
+  }
+
+  function computePortefoljeAarStats(rows, aar){
+    const aarRows = rows.filter(r => r.aar === aar);
+    const filled = aarRows.filter(r => r.endringKr != null);
+    const medIndskud = aarRows.filter(r => r.indskud != null);
+    const bedste = filled.length ? filled.reduce((a, b) => b.endringKr > a.endringKr ? b : a) : null;
+    const vaerste = filled.length ? filled.reduce((a, b) => b.endringKr < a.endringKr ? b : a) : null;
+    const totalKr = filled.reduce((s, r) => s + r.endringKr, 0);
+    const faktor = filled.reduce((f, r) => f * (1 + (r.endringPct || 0) / 100), 1);
+    const totalIndskud = medIndskud.reduce((s, r) => s + r.indskud, 0);
+    const groenne = filled.filter(r => r.endringKr >= 0).length;
+    const roede = filled.filter(r => r.endringKr < 0).length;
+    const foerste = aarRows.find(r => r.vaerdi != null) || null;
+    const sidste = [...aarRows].reverse().find(r => r.vaerdi != null) || null;
+    return { aar, bedste, vaerste, totalKr, pct: (faktor - 1) * 100, totalIndskud, groenne, roede, foerste, sidste, antal: aarRows.length };
+  }
+
+  function buildPortefoljeChartSvg(rows){
+    const filled = rows.filter(r => r.vaerdi != null);
+    if(filled.length < 2) return '';
+    const W = 640, H = 220, padL = 54, padR = 14, padT = 14, padB = 24;
+    const maxVal = Math.max(...filled.map(r => r.vaerdi), 1);
+    const minVal = Math.min(0, ...filled.map(r => r.vaerdi));
+    const x = (i) => padL + (i / (filled.length - 1)) * (W - padL - padR);
+    const y = (val) => padT + (1 - (val - minVal) / (maxVal - minVal || 1)) * (H - padT - padB);
+    const linjePath = filled.map((r, i) => `${i === 0 ? 'M' : 'L'} ${x(i).toFixed(1)} ${y(r.vaerdi).toFixed(1)}`).join(' ');
+    const fladePath = linjePath + ` L ${x(filled.length - 1).toFixed(1)} ${y(minVal).toFixed(1)} L ${x(0).toFixed(1)} ${y(minVal).toFixed(1)} Z`;
+    const gridLines = [0, 0.25, 0.5, 0.75, 1].map(f => {
+      const val = minVal + (maxVal - minVal) * f;
+      const yy = y(val).toFixed(1);
+      return `<line x1="${padL}" y1="${yy}" x2="${W-padR}" y2="${yy}" stroke="var(--border)" stroke-width="1" />
+              <text x="${padL - 8}" y="${yy}" text-anchor="end" dominant-baseline="middle" font-size="10" font-family="Inconsolata, monospace" fill="var(--text-faint)">${fmtKrShort(val)}</text>`;
+    }).join('');
+    const labelStep = Math.max(1, Math.ceil(filled.length / 6));
+    const xLabels = filled.filter((r, i) => i === 0 || i === filled.length - 1 || i % labelStep === 0)
+      .map((r, idx) => filled.indexOf(r)).map(i => `<text x="${x(i).toFixed(1)}" y="${H - 6}" text-anchor="middle" font-size="10" font-family="Inconsolata, monospace" fill="var(--text-faint)">${MAANEDSNAVNE[filled[i].maaned - 1].slice(0,3)} ${String(filled[i].aar).slice(2)}</text>`).join('');
+    return `
+      <svg viewBox="0 0 ${W} ${H}" class="afk-chart-svg" role="img" aria-label="Udvikling i porteføljens værdi over tid">
+        <defs>
+          <linearGradient id="pfFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="var(--navy)" stop-opacity="0.22" />
+            <stop offset="100%" stop-color="var(--navy)" stop-opacity="0.02" />
+          </linearGradient>
+        </defs>
+        ${gridLines}
+        <path d="${fladePath}" fill="url(#pfFill)" stroke="none" />
+        <path d="${linjePath}" fill="none" stroke="var(--navy)" stroke-width="2.5" />
+        ${xLabels}
+      </svg>
+    `;
+  }
+
+  function renderPortefoljeContent(){
+    const rows = computePortefoljeRows();
+    const stats = computePortefoljeStats(rows);
+
+    let aarBlokke = '';
+    let i = 0;
+    while(i < rows.length){
+      const aar = rows[i].aar;
+      const blok = [];
+      while(i < rows.length && rows[i].aar === aar){ blok.push(rows[i]); i++; }
+      aarBlokke += blok.map((r, idx) => `
+        <tr class="pf-row ${idx === 0 ? 'pf-row-year-start' : ''}" data-pf-aar="${r.aar}" data-pf-maaned="${r.maaned}" tabindex="0" role="button" aria-label="Rediger ${MAANEDSNAVNE[r.maaned-1]} ${r.aar}">
+          ${idx === 0 ? `<td class="pf-year-cell" rowspan="${blok.length}" data-pf-year-click="${aar}">${aar}</td>` : ''}
+          <td>${MAANEDSNAVNE[r.maaned - 1]}${r.note ? `<div class="pf-note">${escapeHtml(r.note)}</div>` : ''}</td>
+          <td class="pf-num">${r.vaerdi != null ? fmtKr(r.vaerdi) : '–'}</td>
+          <td class="pf-num">${r.indskud != null ? fmtKr(r.indskud) : '–'}</td>
+          <td class="pf-change-kr ${r.endringKr == null ? 'pf-change-empty' : r.endringKr >= 0 ? 'pos' : 'neg'}">${r.endringKr == null ? '–' : fmtKr(r.endringKr)}</td>
+          <td class="pf-change-pct ${r.endringPct == null ? 'pf-change-empty' : r.endringPct >= 0 ? 'pos' : 'neg'}">${r.endringPct == null ? '–' : fmtPct(r.endringPct)}</td>
+        </tr>
+      `).join('');
+    }
+
+    const chartSvg = buildPortefoljeChartSvg(rows);
+
+    return `
+      <div class="ak-root">
+        <div class="ak-view-header">
+          <div class="ak-title">Månedsopdatering</div>
+          <div class="ak-subtitle">Indtast din porteføljeværdi måned for måned — afkastet beregnes automatisk og holder indskud ude af regnestykket.</div>
+        </div>
+
+        ${stats.harData ? `
+        <div class="ak-panel">
+          <div class="pf-top-row">
+            <div class="pf-avg-card">
+              <div class="pf-avg-label">Gns. månedligt afkast</div>
+              <div class="pf-avg-value ${stats.avgKr >= 0 ? 'pos' : 'neg'}">${fmtKr(stats.avgKr)}</div>
+              <div class="pf-avg-pct ${stats.avgPct >= 0 ? 'pos' : 'neg'}">${fmtPct(stats.avgPct)}</div>
+            </div>
+            <div class="pf-year-summary">
+              ${stats.aarListe.map(a => `
+                <div class="pf-year-summary-row">
+                  <span class="pf-year-summary-aar">${a.aar}</span>
+                  <span class="pf-year-summary-kr ${a.sumKr >= 0 ? 'pos' : 'neg'}">${fmtKr(a.sumKr)}</span>
+                  <span class="pf-year-summary-pct ${a.pct >= 0 ? 'pos' : 'neg'}">${fmtPct(a.pct)}</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+          ${stats.bedste ? `
+          <div class="pf-desc-stats">
+            <button class="pf-desc-stats-header" id="pfStatsToggleBtn" type="button">
+              <span>Beskrivende statistik for udviklingen</span>
+              <span class="pf-desc-stats-arrow ${pfStatsOpen ? 'open' : ''}">▸</span>
+            </button>
+            <div class="pf-desc-collapse ${pfStatsOpen ? 'open' : ''}" id="pfStatsCollapse">
+              <div class="pf-desc-collapse-inner">
+                <div class="pf-desc-grid">
+                  <div class="pf-desc-item"><span>Måneder registreret</span><strong>${stats.antalMaaneder}</strong></div>
+                  <div class="pf-desc-item"><span>Gns. indskud pr. måned</span><strong>${fmtKr(stats.gnsIndskud)}</strong></div>
+                  <div class="pf-desc-item"><span>Grønne måneder</span><strong class="pos">${stats.groenneMdr}</strong></div>
+                  <div class="pf-desc-item"><span>Røde måneder</span><strong class="neg">${stats.roedeMdr}</strong></div>
+                  <div class="pf-desc-item"><span>Indskudt i alt</span><strong>${fmtKr(stats.totalIndskud)}</strong></div>
+                  <div class="pf-desc-item"><span>Afkast i alt</span><strong class="${stats.totalAfkast >= 0 ? 'pos' : 'neg'}">${fmtKr(stats.totalAfkast)}</strong></div>
+                  <div class="pf-desc-item"><span>Højeste porteføljeværdi</span><strong>${fmtKr(stats.maxVaerdi)}</strong></div>
+                  <div class="pf-desc-item"><span>Porteføljen vokset med</span><strong class="${stats.totalVaekst >= 0 ? 'pos' : 'neg'}">${fmtKr(stats.totalVaekst)}</strong></div>
+                  <div class="pf-desc-item"><span>Største stigning på en måned</span><strong class="pos">${fmtKr(stats.bedste.endringKr)}</strong></div>
+                  <div class="pf-desc-item"><span>Største fald på en måned</span><strong class="neg">${fmtKr(Math.abs(stats.vaerste.endringKr))}</strong></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          ` : ''}
+          ${chartSvg ? `<div style="margin-top:14px;">${chartSvg}</div>` : ''}
+        </div>
+        ` : ''}
+
+        <div class="ak-panel">
+          <div class="ak-list-header" style="margin-bottom:10px;">
+            <div class="ak-list-title">Månedlig log</div>
+            <button class="ak-add-btn" id="pfAddBtn">+ Tilføj måned</button>
+          </div>
+          ${rows.length === 0 ? `<div class="ak-empty-panel">Ingen måneder tilføjet endnu. Klik "+ Tilføj måned" for at komme i gang — du kan sagtens starte med ældre data, fx fra sidste år.</div>` : `
+          <div class="pf-table-wrap">
+            <table class="pf-table">
+              <thead>
+                <tr>
+                  <th>År</th><th>Måned</th><th>Værdi</th><th>Indskud</th><th>Ændring</th><th>%</th>
+                </tr>
+              </thead>
+              <tbody>${aarBlokke}</tbody>
+            </table>
+          </div>
+          `}
+        </div>
+
+        <div class="ak-footnote">Ændring pr. måned = denne måneds værdi − sidste måneds værdi − dette måneds indskud.</div>
+      </div>
+    `;
+  }
+
+  function beregnUdtryk(raw){
+    const s = String(raw == null ? '' : raw).trim();
+    if(!s) return null;
+    if(!/^[-+\d.,\s]+$/.test(s)) return null;
+    const dele = s.split(/(?=[+-])/).map(d => d.trim()).filter(Boolean);
+    let sum = 0, harTal = false;
+    for(const del of dele){
+      const num = parseFloat(del.replace(/\s/g, '').replace(/\./g, '').replace(',', '.'));
+      if(!Number.isFinite(num)) return null;
+      sum += num; harTal = true;
+    }
+    return harTal ? sum : null;
+  }
+
+  let pendingPfReminder = null;
+
+  function tjekPfPaamindelse(sale){
+    if(!sale || !sale.salgDato) return;
+    const dele = String(sale.salgDato).split('-').map(Number);
+    if(dele.length !== 3 || dele.some(Number.isNaN)) return;
+    const aar = dele[0], maaned = dele[1];
+    const findes = (state.portefolje || []).some(e => e.aar === aar && e.maaned === maaned);
+    if(!findes){
+      pendingPfReminder = { aar, maaned };
+      refreshPfReminderToast();
+    }
+  }
+
+  function refreshPfReminderToast(){
+    const el = document.getElementById('pfReminderToastContainer');
+    if(el) el.innerHTML = renderPfReminderToast();
+  }
+
+  function renderPfReminderToast(){
+    if(!pendingPfReminder) return '';
+    return `<button class="ak-undo-btn ak-undo-btn-tertiary" onclick="aabnPfPaamindelse()">📊 Husk porteføljeværdi for ${MAANEDSNAVNE[pendingPfReminder.maaned-1]} ${pendingPfReminder.aar} · Tilføj</button>`;
+  }
+
+  window.aabnPfPaamindelse = function(){
+    if(!pendingPfReminder) return;
+    const target = pendingPfReminder;
+    pendingPfReminder = null;
+    refreshPfReminderToast();
+    currentView = 'portefolje';
+    render();
+    openPfModal({ aar: target.aar, maaned: target.maaned, vaerdi: null, indskud: null, note: null });
+  };
+
+  function upsertPortefoljeEntry(aar, maaned, vaerdiRaw, indskudRaw, noteRaw){
+    if(!state.portefolje) state.portefolje = [];
+    const vaerdi = beregnUdtryk(vaerdiRaw), indskud = beregnUdtryk(indskudRaw);
+    const note = String(noteRaw == null ? '' : noteRaw).trim();
+    let entry = state.portefolje.find(e => e.aar === aar && e.maaned === maaned);
+    if(vaerdi == null && indskud == null && !note){
+      if(entry) state.portefolje = state.portefolje.filter(e => e !== entry);
+      return;
+    }
+    if(!entry){
+      entry = { aar, maaned };
+      state.portefolje.push(entry);
+    }
+    entry.vaerdi = vaerdi; entry.indskud = indskud; entry.note = note || null;
+    entry.vaerdiRaw = String(vaerdiRaw == null ? '' : vaerdiRaw).trim() || null;
+    entry.indskudRaw = String(indskudRaw == null ? '' : indskudRaw).trim() || null;
+  }
+
+  function slettPortefoljeEntry(aar, maaned){
+    const idx = (state.portefolje || []).findIndex(e => e.aar === aar && e.maaned === maaned);
+    if(idx === -1) return;
+    const [removed] = state.portefolje.splice(idx, 1);
+    save();
+    if(pendingPfDeleteTimer) clearTimeout(pendingPfDeleteTimer);
+    pendingPfDelete = removed;
+    refreshPfToast();
+    pendingPfDeleteTimer = setTimeout(() => { pendingPfDelete = null; refreshPfToast(); }, 6000);
+  }
+
+  window.fortrydPf = function(){
+    if(!pendingPfDelete) return;
+    if(!state.portefolje) state.portefolje = [];
+    state.portefolje.push(pendingPfDelete);
+    pendingPfDelete = null;
+    if(pendingPfDeleteTimer) clearTimeout(pendingPfDeleteTimer);
+    save();
+    refreshPfToast();
+    renderBloedt();
+  };
+
+  function refreshPfToast(){
+    const el = document.getElementById('pfToastContainer');
+    if(el) el.innerHTML = renderPfUndoToast();
+  }
+
+  function renderPfUndoToast(){
+    if(!pendingPfDelete) return '';
+    return `<button class="ak-undo-btn ak-undo-btn-secondary" onclick="fortrydPf()">${iconUndo()} "${MAANEDSNAVNE[pendingPfDelete.maaned-1]} ${pendingPfDelete.aar}" slettet · Fortryd</button>`;
+  }
+
+  function renderPfModal(){
+    return `
+      <div class="ak-modal-overlay" id="pfModalOverlay">
+        <div class="ak-modal settings-size">
+          <div id="pfModalHeader"></div>
+          <div id="pfModalBody"></div>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderPfYearModal(){
+    return `
+      <div class="ak-modal-overlay" id="pfYearOverlay">
+        <div class="ak-modal settings-size">
+          <div id="pfYearBody"></div>
+        </div>
+      </div>
+    `;
+  }
+
+  function openPfYearModal(aar){
+    const rows = computePortefoljeRows();
+    const s = computePortefoljeAarStats(rows, aar);
+    document.getElementById('pfYearOverlay').outerHTML = renderPfYearModal();
+    const overlay = document.getElementById('pfYearOverlay');
+    overlay.classList.add('open');
+    lockBackgroundScroll();
+    wireBackdropClose(overlay, closePfYearModal);
+    document.getElementById('pfYearBody').innerHTML = `
+      <div class="ak-modal-header">
+        <div class="ak-modal-title">${aar}</div>
+        <button class="ak-modal-close" id="pfYearClose">×</button>
+      </div>
+      <div style="padding:20px 22px;">
+        ${s.antal === 0 ? `<div class="ak-empty-panel">Ingen måneder registreret for ${aar} endnu.</div>` : `
+        <div class="pf-desc-grid" style="border:1px solid var(--border); border-radius:10px; overflow:hidden; margin-bottom:14px;">
+          <div class="pf-desc-item"><span>Samlet afkast</span><strong class="${s.totalKr >= 0 ? 'pos' : 'neg'}">${fmtKr(s.totalKr)}</strong></div>
+          <div class="pf-desc-item"><span>Afkast i %</span><strong class="${s.pct >= 0 ? 'pos' : 'neg'}">${fmtPct(s.pct)}</strong></div>
+          <div class="pf-desc-item"><span>Indskudt i alt</span><strong>${fmtKr(s.totalIndskud)}</strong></div>
+          <div class="pf-desc-item"><span>Måneder registreret</span><strong>${s.antal}</strong></div>
+          <div class="pf-desc-item"><span>Grønne måneder</span><strong class="pos">${s.groenne}</strong></div>
+          <div class="pf-desc-item"><span>Røde måneder</span><strong class="neg">${s.roede}</strong></div>
+        </div>
+        ${s.bedste ? `<div class="pf-stat-row-modal"><span>Bedste måned</span><strong class="pos">${MAANEDSNAVNE[s.bedste.maaned-1]} · ${fmtKr(s.bedste.endringKr)}</strong></div>` : ''}
+        ${s.vaerste ? `<div class="pf-stat-row-modal"><span>Dårligste måned</span><strong class="neg">${MAANEDSNAVNE[s.vaerste.maaned-1]} · ${fmtKr(s.vaerste.endringKr)}</strong></div>` : ''}
+        ${s.foerste && s.sidste ? `<div class="pf-stat-row-modal"><span>Værdi ${MAANEDSNAVNE[s.foerste.maaned-1]} → ${MAANEDSNAVNE[s.sidste.maaned-1]}</span><strong>${fmtKr(s.foerste.vaerdi)} → ${fmtKr(s.sidste.vaerdi)}</strong></div>` : ''}
+        `}
+      </div>
+    `;
+    document.getElementById('pfYearClose').addEventListener('click', closePfYearModal);
+  }
+
+  function closePfYearModal(){
+    const el = document.getElementById('pfYearOverlay');
+    if(el) el.classList.remove('open');
+    unlockBackgroundScroll();
+  }
+
+  function naesteMaanedEfterSeneste(){
+    const log = Array.isArray(state.portefolje) ? state.portefolje : [];
+    if(!log.length){
+      const now = new Date();
+      return { aar: now.getFullYear(), maaned: now.getMonth() + 1 };
+    }
+    const sorted = log.slice().sort((a, b) => a.aar - b.aar || a.maaned - b.maaned);
+    const sidste = sorted[sorted.length - 1];
+    return sidste.maaned === 12 ? { aar: sidste.aar + 1, maaned: 1 } : { aar: sidste.aar, maaned: sidste.maaned + 1 };
+  }
+
+  function openPfModal(eksisterende){
+    pfEditingKey = eksisterende ? { aar: eksisterende.aar, maaned: eksisterende.maaned } : null;
+    document.getElementById('pfModalOverlay').outerHTML = renderPfModal();
+    const overlay = document.getElementById('pfModalOverlay');
+    overlay.classList.add('open');
+    lockBackgroundScroll();
+    wireBackdropClose(overlay, closePfModal);
+
+    const start = eksisterende || Object.assign({ vaerdi: null, indskud: null, note: null }, naesteMaanedEfterSeneste());
+    const talTilFelt = (raw, num) => raw != null ? raw : (num != null ? String(num).replace('.', ',') : '');
+    document.getElementById('pfModalHeader').innerHTML = `
+      <div class="ak-modal-header">
+        <div class="ak-modal-title">${eksisterende ? 'Rediger måned' : 'Tilføj måned'}</div>
+        <button class="ak-modal-close" id="pfModalClose">×</button>
+      </div>
+    `;
+    document.getElementById('pfModalBody').innerHTML = `
+      <div style="padding:20px 22px;">
+        <div class="ak-field-row">
+          <div class="ak-field"><label for="pfAar">År</label><input type="number" id="pfAar" value="${start.aar}" step="1"></div>
+          <div class="ak-field"><label for="pfMaaned">Måned</label>
+            <select id="pfMaaned">${MAANEDSNAVNE.map((navn, idx) => `<option value="${idx+1}" ${idx+1 === start.maaned ? 'selected' : ''}>${navn}</option>`).join('')}</select>
+          </div>
+        </div>
+        <div class="ak-field"><label for="pfVaerdi">Værdi af portefølje (kr.)</label><input type="text" id="pfVaerdi" value="${escapeHtml(talTilFelt(start.vaerdiRaw, start.vaerdi))}" autofocus></div>
+        <div class="ak-field">
+          <label for="pfIndskud">Indskudt denne måned (kr.) <span class="ak-hint-inline">— flere indbetalinger? Skriv fx 305 + 474 + 945. Udtræk: skriv negativt</span></label>
+          <input type="text" id="pfIndskud" value="${escapeHtml(talTilFelt(start.indskudRaw, start.indskud))}">
+          <div class="ak-fx-hint" id="pfIndskudSum"></div>
+        </div>
+        <div class="ak-field"><label for="pfNote">Note <span class="ak-hint-inline">(valgfri, fx "solgte TSLA")</span></label><input type="text" id="pfNote" value="${start.note ? escapeHtml(start.note) : ''}"></div>
+        <div class="ak-modal-footer" style="padding:16px 0 0; border-top:none; display:flex; gap:10px; justify-content:space-between;">
+          ${eksisterende ? `<button class="ak-ghostbtn" id="pfDeleteBtn" style="width:auto; border-color:var(--red); color:var(--red);">Slet</button>` : '<span></span>'}
+          <div style="display:flex; gap:10px;">
+            <button class="ak-cancel-btn" id="pfCancelBtn">Annullér</button>
+            <button class="ak-submit-btn" id="pfSaveBtn">Gem</button>
+          </div>
+        </div>
+      </div>
+    `;
+    document.getElementById('pfModalClose').addEventListener('click', closePfModal);
+    document.getElementById('pfCancelBtn').addEventListener('click', closePfModal);
+    document.getElementById('pfSaveBtn').addEventListener('click', savePfModal);
+    const indskudEl = document.getElementById('pfIndskud');
+    const opdaterIndskudSum = () => {
+      const hint = document.getElementById('pfIndskudSum');
+      const raw = indskudEl.value.trim();
+      const antalDele = raw.split(/(?=[+-])/).map(d => d.trim()).filter(Boolean).length;
+      const sum = beregnUdtryk(raw);
+      hint.textContent = sum != null && antalDele > 1 ? `= ${fmtKr(sum)}` : '';
+    };
+    indskudEl.addEventListener('input', opdaterIndskudSum);
+    opdaterIndskudSum();
+    if(eksisterende){
+      document.getElementById('pfDeleteBtn').addEventListener('click', () => {
+        slettPortefoljeEntry(eksisterende.aar, eksisterende.maaned);
+        closePfModal();
+        renderBloedt();
+      });
+    }
+    document.getElementById('pfVaerdi').focus();
+  }
+
+  function closePfModal(){
+    const el = document.getElementById('pfModalOverlay');
+    if(el) el.classList.remove('open');
+    unlockBackgroundScroll();
+  }
+
+  function savePfModal(){
+    const aar = parseInt(document.getElementById('pfAar').value, 10);
+    const maaned = parseInt(document.getElementById('pfMaaned').value, 10);
+    if(!Number.isFinite(aar) || !maaned) return;
+    const eksisterendeAndenPost = (state.portefolje || []).find(e => e.aar === aar && e.maaned === maaned && (!pfEditingKey || e.aar !== pfEditingKey.aar || e.maaned !== pfEditingKey.maaned));
+    if(eksisterendeAndenPost && !confirm(`${MAANEDSNAVNE[maaned-1]} ${aar} har allerede en værdi registreret. Vil du overskrive den?`)) return;
+    if(pfEditingKey && (pfEditingKey.aar !== aar || pfEditingKey.maaned !== maaned)){
+      state.portefolje = (state.portefolje || []).filter(e => !(e.aar === pfEditingKey.aar && e.maaned === pfEditingKey.maaned));
+    }
+    upsertPortefoljeEntry(aar, maaned, document.getElementById('pfVaerdi').value, document.getElementById('pfIndskud').value, document.getElementById('pfNote').value);
+    save();
+    closePfModal();
+    renderBloedt();
+  }
+
+  function wirePortefoljeView(){
+    document.getElementById('pfAddBtn').addEventListener('click', () => openPfModal(null));
+    document.querySelectorAll('.pf-row').forEach(row => {
+      const aabn = () => {
+        const kilde = (state.portefolje || []).find(e => e.aar == row.dataset.pfAar && e.maaned == row.dataset.pfMaaned);
+        openPfModal({
+          aar: parseInt(row.dataset.pfAar, 10), maaned: parseInt(row.dataset.pfMaaned, 10),
+          vaerdi: kilde?.vaerdi ?? null, indskud: kilde?.indskud ?? null, note: kilde?.note ?? null,
+          vaerdiRaw: kilde?.vaerdiRaw ?? null, indskudRaw: kilde?.indskudRaw ?? null
+        });
+      };
+      row.addEventListener('click', aabn);
+      row.addEventListener('keydown', (e) => { if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); aabn(); } });
+    });
+    document.querySelectorAll('[data-pf-year-click]').forEach(cell => {
+      cell.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openPfYearModal(parseInt(cell.dataset.pfYearClick, 10));
+      });
+    });
+    const statsToggleBtn = document.getElementById('pfStatsToggleBtn');
+    if(statsToggleBtn){
+      statsToggleBtn.addEventListener('click', () => {
+        pfStatsOpen = !pfStatsOpen;
+        document.getElementById('pfStatsCollapse').classList.toggle('open', pfStatsOpen);
+        statsToggleBtn.querySelector('.pf-desc-stats-arrow').classList.toggle('open', pfStatsOpen);
+      });
+    }
   }
 
   // ============ SØG / ALLE SALG VIEW ============
@@ -3133,6 +3708,7 @@
     activeYear = draft.aar;
     editingId = null;
     unlockBackgroundScroll();
+    tjekPfPaamindelse(draft);
     render();
   }
 
@@ -3141,8 +3717,12 @@
     const modalOv = document.getElementById('modalOverlay');
     const detailsOv = document.getElementById('saleDetailsOverlay');
     const settingsOv = document.getElementById('settingsOverlay');
+    const pfOv = document.getElementById('pfModalOverlay');
+    const pfYearOv = document.getElementById('pfYearOverlay');
     if(detailsOv && detailsOv.classList.contains('open')){ closeSaleDetails(); return; }
     if(modalOv && modalOv.classList.contains('open')){ closeModal(); return; }
+    if(pfYearOv && pfYearOv.classList.contains('open')){ closePfYearModal(); return; }
+    if(pfOv && pfOv.classList.contains('open')){ closePfModal(); return; }
     if(settingsOv && settingsOv.classList.contains('open')){
       if(settingsView === 'info'){ settingsView = 'main'; renderSettingsBody(); }
       else closeSettingsModal();
