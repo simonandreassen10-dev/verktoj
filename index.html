@@ -298,15 +298,9 @@
   .ak-ask-inline-value.neg { color: var(--red); }
   .ak-ask-inline-note { font-size: 10.5px; color: var(--text-muted); line-height: 1.45; margin-top: 8px; }
 
-  .ak-entry.ask {
-    border-color: var(--border);
-    background: var(--entry-bg);
-    box-shadow: inset 2px 0 0 color-mix(in srgb, var(--gold) 72%, var(--border));
-  }
-  .ak-entry.ask:hover, .ak-entry.ask:focus-visible {
-    border-color: color-mix(in srgb, var(--gold) 28%, var(--border));
-    background: var(--hover);
-  }
+  .ak-entry.gain { border-color: var(--border); box-shadow: inset 3px 0 0 var(--green); }
+  .ak-entry.loss { border-color: var(--border); box-shadow: inset 3px 0 0 var(--red); }
+  .ak-entry.gain:hover, .ak-entry.gain:focus-visible, .ak-entry.loss:hover, .ak-entry.loss:focus-visible { border-color: var(--border); background: var(--hover); }
 
   @media (max-width: 620px) {
     .ak-year-toolbar { align-items: stretch; }
@@ -830,7 +824,7 @@
     onAuthStateChanged, signOut
   } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
   import {
-    getFirestore, doc, getDoc, setDoc
+    getFirestore, doc, getDoc, setDoc, collection, getDocs, writeBatch
   } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
 
   // ERSTAT MED DIN EGEN FIREBASE-KONFIGURATION (Firebase Console → Projektindstillinger → Dine apps → Web-app)
@@ -850,40 +844,121 @@
   const THEME_KEY = 'verktoj-theme';
   let state = null;
   let indlaeserData = false;
+  let demoMode = false;
+  const DEMO_STATE_KEY = 'aktiesalg-demo-state-v1';
 
-  function stateDocRef(){ return doc(db, 'aktiesalg', currentUser.uid); }
+  function tomState(){ return { sales: [], andenPerYear: {}, gift: false, extraYears: [], customCurrencies: [], brokers: DEFAULT_BROKERS.slice(), afkast: null, portefolje: [], certificates: [], certificateTaxRate: 37, gammeltArkImporteret: false }; }
+
+  // Version 2 gemmer hver handel som sit eget dokument. Det betyder, at en bruger
+  // kan beholde mange års historik uden at ramme grænsen for ét stort Firebase-dokument.
+  function brugerDocRef(){ return doc(db, 'users', currentUser.uid); }
+  function gammelStateDocRef(){ return doc(db, 'aktiesalg', currentUser.uid); }
+  const CLOUD_COLLECTIONS = { sales: 'sales', certificates: 'certificates', portefolje: 'portefolje' };
+  let cloudFingerprints = { sales: new Map(), certificates: new Map(), portefolje: new Map() };
+
+  function normaliseretState(data, records = {}){
+    const d = data || {};
+    const standard = tomState();
+    return {
+      ...standard,
+      sales: Array.isArray(records.sales) ? records.sales : (Array.isArray(d.sales) ? d.sales : []),
+      certificates: Array.isArray(records.certificates) ? records.certificates : (Array.isArray(d.certificates) ? d.certificates : []),
+      portefolje: Array.isArray(records.portefolje) ? records.portefolje : (Array.isArray(d.portefolje) ? d.portefolje : []),
+      andenPerYear: d.andenPerYear && typeof d.andenPerYear === 'object' ? d.andenPerYear : {},
+      gift: !!d.gift,
+      extraYears: Array.isArray(d.extraYears) ? d.extraYears : [],
+      customCurrencies: Array.isArray(d.customCurrencies) ? d.customCurrencies : [],
+      brokers: Array.isArray(d.brokers) ? d.brokers : Array.from(new Set(DEFAULT_BROKERS.concat(d.customBrokers || []))),
+      afkast: d.afkast || null,
+      certificateTaxRate: Number.isFinite(Number(d.certificateTaxRate)) ? Number(d.certificateTaxRate) : standard.certificateTaxRate,
+      gammeltArkImporteret: !!d.gammeltArkImporteret
+    };
+  }
+
+  function cloudKey(type, item){
+    if(type === 'portefolje') return `${item.aar}-${String(item.maaned).padStart(2, '0')}`;
+    return String(item.id);
+  }
+
+  function cloudRecords(type, list){
+    return (Array.isArray(list) ? list : []).filter(Boolean).map(item => {
+      const id = cloudKey(type, item);
+      return { id, data: { ...item, id } };
+    }).filter(item => item.id && item.id !== 'undefined');
+  }
+
+  function fingerprint(data){ return JSON.stringify(data); }
+
+  function opdaterCloudFingerprints(type, records){
+    cloudFingerprints[type] = new Map(records.map(record => [record.id, fingerprint(record.data)]));
+  }
+
+  async function hentCloudRecords(type){
+    const snap = await getDocs(collection(brugerDocRef(), CLOUD_COLLECTIONS[type]));
+    const records = snap.docs.map(entry => entry.data());
+    opdaterCloudFingerprints(type, records.map(data => ({ id: cloudKey(type, data), data })));
+    return records;
+  }
+
+  function profilFraState(snapshot){
+    const { sales, certificates, portefolje, ...profil } = snapshot;
+    return { ...profil, schemaVersion: 2, updatedAt: new Date().toISOString() };
+  }
+
+  async function koerBatcher(handlinger){
+    for(let start = 0; start < handlinger.length; start += 450){
+      const batch = writeBatch(db);
+      handlinger.slice(start, start + 450).forEach(handling => handling(batch));
+      await batch.commit();
+    }
+  }
+
+  async function synkroniserCloudCollection(type, list){
+    const records = cloudRecords(type, list);
+    const naeste = new Map(records.map(record => [record.id, fingerprint(record.data)]));
+    const tidligere = cloudFingerprints[type] || new Map();
+    const handlinger = [];
+    records.forEach(record => {
+      if(tidligere.get(record.id) !== naeste.get(record.id)){
+        handlinger.push(batch => batch.set(doc(brugerDocRef(), CLOUD_COLLECTIONS[type], record.id), record.data));
+      }
+    });
+    tidligere.forEach((_, id) => {
+      if(!naeste.has(id)) handlinger.push(batch => batch.delete(doc(brugerDocRef(), CLOUD_COLLECTIONS[type], id)));
+    });
+    await koerBatcher(handlinger);
+    cloudFingerprints[type] = naeste;
+  }
+
+  async function gemStruktureretData(snapshot){
+    await setDoc(brugerDocRef(), profilFraState(snapshot), { merge: true });
+    await Promise.all([
+      synkroniserCloudCollection('sales', snapshot.sales),
+      synkroniserCloudCollection('certificates', snapshot.certificates),
+      synkroniserCloudCollection('portefolje', snapshot.portefolje)
+    ]);
+  }
 
   async function loadData(){
     indlaeserData = true;
     render();
     try {
-      const snap = await getDoc(stateDocRef());
-      if(snap.exists()){
-        const d = snap.data();
-        state = {
-          sales: d.sales || [],
-          andenPerYear: d.andenPerYear || {},
-          gift: !!d.gift,
-          extraYears: d.extraYears || [],
-          customCurrencies: d.customCurrencies || [],
-          brokers: Array.isArray(d.brokers) ? d.brokers : null,
-          afkast: d.afkast || null,
-          portefolje: Array.isArray(d.portefolje) ? d.portefolje : [],
-          certificates: Array.isArray(d.certificates) ? d.certificates : [],
-          certificateTaxRate: Number.isFinite(Number(d.certificateTaxRate)) ? Number(d.certificateTaxRate) : 37,
-          gammeltArkImporteret: !!d.gammeltArkImporteret
-        };
-        if(!state.brokers){
-          state.brokers = Array.from(new Set(DEFAULT_BROKERS.concat(d.customBrokers || [])));
-          await setDoc(stateDocRef(), state);
-        }
+      const profileSnap = await getDoc(brugerDocRef());
+      if(profileSnap.exists() && profileSnap.data().schemaVersion === 2){
+        const [sales, certificates, portefolje] = await Promise.all([
+          hentCloudRecords('sales'), hentCloudRecords('certificates'), hentCloudRecords('portefolje')
+        ]);
+        state = normaliseretState(profileSnap.data(), { sales, certificates, portefolje });
       } else {
-        state = { sales: [], andenPerYear: {}, gift: false, extraYears: [], customCurrencies: [], brokers: DEFAULT_BROKERS.slice(), afkast: null, portefolje: [], certificates: [], certificateTaxRate: 37, gammeltArkImporteret: false };
-        await setDoc(stateDocRef(), state);
+        // Første åbning flytter den gamle konto til den nye, opdelte struktur.
+        // Den gamle kopi slettes ikke; den fungerer som en ekstra sikkerhedsreserve.
+        const legacySnap = await getDoc(gammelStateDocRef());
+        state = normaliseretState(legacySnap.exists() ? legacySnap.data() : null);
+        await gemStruktureretData(JSON.parse(JSON.stringify(state)));
       }
     } catch(e) {
       console.error('Kunne ikke hente data', e);
-      state = { sales: [], andenPerYear: {}, gift: false, extraYears: [], customCurrencies: [], brokers: DEFAULT_BROKERS.slice(), afkast: null, portefolje: [], certificates: [], certificateTaxRate: 37, gammeltArkImporteret: false };
+      state = tomState();
     }
     indlaeserData = false;
     render();
@@ -900,6 +975,7 @@
 
   let activeYear = null;
   let ledgerOpen = false;
+  let askLedgerOpen = false;
   let andenEditing = false;
   let currentView = 'aktiesalg';
   let sidebarCollapsed = localStorage.getItem('verktoj-sidebar-collapsed') === '1';
@@ -911,13 +987,19 @@
   let draftSalgRate = '';
   let pendingDelete = null;
   let pendingDeleteTimer = null;
+  let pendingCertificateDelete = null;
+  let pendingCertificateDeleteTimer = null;
   let draftLogoUrl = '';
   let tickerLookupTimer = null;
   let tickerLookupSequence = 0;
   let deferredInstallPrompt = null;
   let detailsSaleId = null;
+  let certificateDetailsId = null;
   let certificateEditingId = null;
   let aktiesalgTab = 'almindeligt';
+  let certificateYear = null;
+  let movedTradeNotice = '';
+  let depotSort = 'nyeste';
 
   const DEFAULT_BROKERS = ['Nordnet', 'Endavu', 'Saxo Bank', 'Danske Bank', 'Jyske Bank', 'Nordea'];
   const NOT_SPECIFIED_BROKER = 'Ikke angivet';
@@ -943,11 +1025,16 @@
 
   let saveQueue = Promise.resolve();
   function save(){
-    if(!currentUser || !state) return Promise.resolve();
+    if(!state) return Promise.resolve();
     const snapshot = JSON.parse(JSON.stringify(state));
+    if(demoMode){
+      try { localStorage.setItem(DEMO_STATE_KEY, JSON.stringify(snapshot)); } catch(e) { console.error('Kunne ikke gemme testdata', e); }
+      return Promise.resolve();
+    }
+    if(!currentUser) return Promise.resolve();
     saveQueue = saveQueue
       .catch(() => {})
-      .then(() => setDoc(stateDocRef(), snapshot))
+      .then(() => gemStruktureretData(snapshot))
       .catch(e => console.error('Kunne ikke gemme data', e));
     return saveQueue;
   }
@@ -1074,6 +1161,18 @@
     return datoA.localeCompare(datoB) || String(a.id || '').localeCompare(String(b.id || ''));
   }
 
+  function sorterDepotHandler(items, isCertificate){
+    const result = s => isCertificate ? certificateResult(s) : (s.gevinst || 0);
+    const pct = s => { const basis = isCertificate ? (parseFloat(s.startValue) || 0) : (s.kobsbelob || 0); return basis > 0 ? result(s) / basis : 0; };
+    return items.slice().sort((a,b) => {
+      if(depotSort === 'nyeste') return saleChronology(b, a);
+      if(depotSort === 'aeldste') return saleChronology(a, b);
+      if(depotSort === 'resultat') return result(b) - result(a);
+      if(depotSort === 'procent') return pct(b) - pct(a);
+      return 0;
+    });
+  }
+
   function beregnDepotForloeb(salesPool, years, andenPerYear, satsFn){
     const perYear = {};
     let carry = 0;
@@ -1139,7 +1238,7 @@
     const headerHtml = `
       <button class="ak-ledger-header" id="ledgerToggleBtn">
         <span class="ak-ledger-arrow ${ledgerOpen ? 'open' : ''}">▸</span>
-        <span>Skatteopgørelse ${year}</span>
+        <span>Skatterapport ${year}</span>
       </button>
     `;
     if(!ledgerOpen){
@@ -1168,6 +1267,15 @@
     `;
   }
 
+  function renderAskLedger(yearData, year){
+    const header = `<button class="ak-ledger-header" id="askLedgerToggleBtn"><span class="ak-ledger-arrow ${askLedgerOpen ? 'open' : ''}">▸</span><span>ASK-skatterapport ${year}</span></button>`;
+    if(!askLedgerOpen) return `<div class="ak-ledger">${header}</div>`;
+    const rows = (yearData.sales || []).map(s => `<div class="ak-ledger-row"><span class="k">${escapeHtml((s.gevinst >= 0 ? 'Gevinst' : 'Tab') + ' – ' + (s.navn || 'salg'))}</span><span class="v ${s.gevinst >= 0 ? 'pos' : 'neg'}">${fmtKr(s.gevinst)}</span></div>`).join('') || '<div class="ak-ledger-empty">Tilføj din første ASK-handel, så bygger rapporten sig selv op her.</div>';
+    const carry = yearData.carryIn > 0 ? `<div class="ak-ledger-row"><span class="k">Fremført ASK-tab fra ${year - 1}</span><span class="v neg">${fmtKr(-yearData.carryIn)}</span></div>` : '';
+    const carryOut = yearData.carryOut > 0 ? `<div class="ak-ledger-row"><span class="k">ASK-tab til fremførsel</span><span class="v neg">${fmtKr(yearData.carryOut)}</span></div>` : '';
+    return `<div class="ak-ledger">${header}${carry}${rows}<div class="ak-ledger-row"><span class="k">= Årets nettoresultat</span><span class="v">${fmtKr(yearData.totalGevinst)}</span></div>${carryOut}<div class="ak-ledger-row total"><span class="k">Vejledende ASK-skat (17%)</span><span class="v">${fmtKr(yearData.totalSkat)}</span></div><div class="ak-ledger-row total"><span class="k">Efter skat</span><span class="v ${yearData.netto >= 0 ? 'pos' : 'neg'}">${fmtKr(yearData.netto)}</span></div></div>`;
+  }
+
 
   function iconSun(){ return '☀️'; }
   function iconMoon(){ return '🌙'; }
@@ -1180,7 +1288,80 @@
     return `<button class="ak-theme-toggle" onclick="skiftTema()" aria-label="Skift mellem lyst og mørkt tema"><span class="ak-theme-toggle-dot">${darkMode ? iconSun() : iconMoon()}</span><span>${darkMode ? 'Lyst tema' : 'Dark mode'}</span></button>`;
   }
 
-  let settingsView = 'main'; // 'main' | 'info'
+  let settingsView = 'main'; // 'main' | 'info' | 'brokers' | 'data'
+
+  function backupFilnavn(){
+    const dato = new Date().toISOString().slice(0, 10);
+    return `aktiesalg-backup-${dato}.json`;
+  }
+
+  function dataOversigt(){
+    const json = JSON.stringify(state || {});
+    const bytes = new Blob([json]).size;
+    const kb = Math.max(1, Math.round(bytes / 1024));
+    const salg = Array.isArray(state?.sales) ? state.sales.length : 0;
+    const certifikater = Array.isArray(state?.certificates) ? state.certificates.length : 0;
+    return `${salg} aktiehandler · ${certifikater} certifikater · ca. ${kb} KB`;
+  }
+
+  function eksportData(){
+    if(!state) return;
+    const backup = {
+      format: 'aktiesalg-backup',
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      state: JSON.parse(JSON.stringify(state))
+    };
+    const href = URL.createObjectURL(new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' }));
+    const link = document.createElement('a');
+    link.href = href;
+    link.download = backupFilnavn();
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(href);
+    const status = document.getElementById('dataBackupStatus');
+    if(status) status.textContent = 'Sikkerhedskopi downloadet. Gem filen et sikkert sted.';
+  }
+
+  function normaliserImporteretState(input){
+    const raw = input && input.state ? input.state : input;
+    if(!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('Ugyldig backupfil');
+    const standard = tomState();
+    return {
+      ...standard,
+      sales: Array.isArray(raw.sales) ? raw.sales : [],
+      certificates: Array.isArray(raw.certificates) ? raw.certificates : [],
+      andenPerYear: raw.andenPerYear && typeof raw.andenPerYear === 'object' && !Array.isArray(raw.andenPerYear) ? raw.andenPerYear : {},
+      gift: !!raw.gift,
+      extraYears: Array.isArray(raw.extraYears) ? raw.extraYears : [],
+      customCurrencies: Array.isArray(raw.customCurrencies) ? raw.customCurrencies : [],
+      brokers: Array.isArray(raw.brokers) ? raw.brokers : standard.brokers,
+      afkast: raw.afkast || null,
+      portefolje: Array.isArray(raw.portefolje) ? raw.portefolje : [],
+      certificateTaxRate: Number.isFinite(Number(raw.certificateTaxRate)) ? Number(raw.certificateTaxRate) : standard.certificateTaxRate,
+      gammeltArkImporteret: !!raw.gammeltArkImporteret
+    };
+  }
+
+  function importerData(file){
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        const imported = normaliserImporteretState(JSON.parse(String(reader.result || '')));
+        if(!confirm('Import erstatter dine nuværende data. Har du downloadet en sikkerhedskopi først?')) return;
+        state = imported;
+        await save();
+        closeSettingsModal();
+        renderBloedt();
+        alert('Sikkerhedskopien er importeret.');
+      } catch(error) {
+        alert('Filen kunne ikke importeres. Vælg en sikkerhedskopi, der er eksporteret fra appen.');
+      }
+    };
+    reader.readAsText(file);
+  }
 
   function koererSomInstalleretApp(){
     return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
@@ -1347,6 +1528,48 @@
       const tilfoej = () => { if(tilfoejMaeglerFraIndstillinger(nyInput.value)) renderSettingsBody(); };
       tilfoejBtn.addEventListener('click', tilfoej);
       nyInput.addEventListener('keydown', e => { if(e.key === 'Enter') tilfoej(); });
+    } else if(settingsView === 'data'){
+      headerEl.innerHTML = `
+        <div class="ak-modal-header">
+          <button class="ak-modal-back tip-right" id="dataBackBtn" data-tip="Tilbage">‹</button>
+          <div class="ak-modal-title">Dine data</div>
+          <button class="ak-modal-close" id="settingsClose">×</button>
+        </div>
+      `;
+      bodyEl.innerHTML = `
+        <div style="padding:22px 26px;">
+          <div class="ak-settings-row">
+            <div class="ak-settings-row-text">
+              <div class="ak-settings-row-title">Sikkerhedskopi</div>
+              <div class="ak-settings-row-sub">${dataOversigt()}. Download en kopi, før du flytter data eller foretager større ændringer.</div>
+            </div>
+          </div>
+          <button class="ak-settings-row ak-settings-row-link" id="exportDataBtn" style="margin-top:10px;">
+            <div class="ak-settings-row-text">
+              <div class="ak-settings-row-title">Download sikkerhedskopi</div>
+              <div class="ak-settings-row-sub">Gemmer alle handler, certifikater, porteføljeværdier og indstillinger som en privat JSON-fil.</div>
+            </div>
+            <span class="ak-settings-row-chevron">↓</span>
+          </button>
+          <div id="dataBackupStatus" class="ak-settings-row-sub" style="padding:8px 2px 0;"></div>
+          <button class="ak-settings-row ak-settings-row-link" id="importDataBtn" style="margin-top:10px;">
+            <div class="ak-settings-row-text">
+              <div class="ak-settings-row-title">Gendan fra sikkerhedskopi</div>
+              <div class="ak-settings-row-sub">Erstatter de nuværende data med en tidligere downloadet sikkerhedskopi.</div>
+            </div>
+            <span class="ak-settings-row-chevron">↑</span>
+          </button>
+          <input id="importDataInput" type="file" accept="application/json,.json" style="display:none;">
+          <div class="ak-settings-row-sub" style="padding:12px 2px 0;">Dine data gemmes på din egen konto. Download jævnligt en sikkerhedskopi, især før større ændringer.</div>
+        </div>
+      `;
+      document.getElementById('dataBackBtn').addEventListener('click', () => {
+        renderBloedt(() => { settingsView = 'main'; renderSettingsBody(); });
+      });
+      document.getElementById('exportDataBtn').addEventListener('click', eksportData);
+      const importInput = document.getElementById('importDataInput');
+      document.getElementById('importDataBtn').addEventListener('click', () => importInput.click());
+      importInput.addEventListener('change', () => importerData(importInput.files?.[0]));
     } else {
       headerEl.innerHTML = `
         <div class="ak-modal-header">
@@ -1388,6 +1611,14 @@
             <span class="ak-settings-row-chevron">›</span>
           </button>
 
+          <button class="ak-settings-row ak-settings-row-link" id="openDataBtn" style="margin-top:10px;">
+            <div class="ak-settings-row-text">
+              <div class="ak-settings-row-title">Dine data og sikkerhedskopi</div>
+              <div class="ak-settings-row-sub">Download eller gendan alle dine registreringer</div>
+            </div>
+            <span class="ak-settings-row-chevron">›</span>
+          </button>
+
         </div>
       `;
       document.getElementById('installAppBtn').addEventListener('click', haandterAppInstallation);
@@ -1402,6 +1633,9 @@
       });
       document.getElementById('openBrokersBtn').addEventListener('click', () => {
         renderBloedt(() => { settingsView = 'brokers'; renderSettingsBody(); });
+      });
+      document.getElementById('openDataBtn').addEventListener('click', () => {
+        renderBloedt(() => { settingsView = 'data'; renderSettingsBody(); });
       });
     }
     document.getElementById('settingsClose').addEventListener('click', closeSettingsModal);
@@ -1450,6 +1684,35 @@
     if(!pendingDelete) return '';
     return `<button class="ak-undo-btn" onclick="fortryd()">${iconUndo()} "${escapeHtml(pendingDelete.navn || 'Salg')}" slettet · Fortryd</button>`;
   }
+
+  function renderCertificateUndoToast(){
+    if(!pendingCertificateDelete) return '';
+    return `<button class="ak-undo-btn ak-undo-btn-secondary" onclick="fortrydCertifikat()">${iconUndo()} "${escapeHtml(pendingCertificateDelete.name || 'Certifikat')}" slettet · Fortryd</button>`;
+  }
+
+  function deleteCertificate(id){
+    const index = (state.certificates || []).findIndex(c => c.id === id);
+    if(index === -1) return;
+    const [removed] = state.certificates.splice(index, 1);
+    save();
+    if(pendingCertificateDeleteTimer) clearTimeout(pendingCertificateDeleteTimer);
+    pendingCertificateDelete = removed;
+    renderBloedt();
+    pendingCertificateDeleteTimer = setTimeout(() => {
+      pendingCertificateDelete = null;
+      renderBloedt();
+    }, 6000);
+  }
+
+  window.fortrydCertifikat = function(){
+    if(!pendingCertificateDelete) return;
+    if(!Array.isArray(state.certificates)) state.certificates = [];
+    state.certificates.push(pendingCertificateDelete);
+    pendingCertificateDelete = null;
+    if(pendingCertificateDeleteTimer) clearTimeout(pendingCertificateDeleteTimer);
+    save();
+    renderBloedt();
+  };
 
   function escapeHtml(str){
     return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1593,7 +1856,7 @@
     const editAttr = searchMode ? 'data-sog-edit' : 'data-edit';
     const delAttr = searchMode ? 'data-sog-del' : 'data-del';
     return `
-      <div class="ak-entry ${s.satsmode === 'ask' ? 'ask' : ''}" data-sale-details="${escapeHtml(s.id)}" tabindex="0" role="button" aria-label="Vis detaljer om ${escapeHtml(s.navn || s.ticker || 'salget')}">
+      <div class="ak-entry ${isGain ? 'gain' : 'loss'}" data-sale-details="${escapeHtml(s.id)}" tabindex="0" role="button" aria-label="Vis detaljer om ${escapeHtml(s.navn || s.ticker || 'salget')}">
         <div class="ak-entry-row-top">
           ${saleIdentityHtml(s, isGain, showYear)}
           <div class="ak-entry-top-right">
@@ -1796,7 +2059,7 @@
   }
 
   function render(){
-    if(!currentUser){ renderAuthScreen(); return; }
+    if(!currentUser && !demoMode){ renderAuthScreen(); return; }
     if(indlaeserData || !state){ renderLoading(); return; }
     renderApp();
   }
@@ -1815,6 +2078,8 @@
             : '<button class="ak-auth-primary" id="opretBtn">Opret konto</button><button class="ak-auth-secondary" id="skiftTilLoginBtn">Log ind i stedet</button>'
           }
         </div>
+        <button class="ak-auth-secondary" id="testAccountBtn" style="width:100%;margin-top:10px;">Prøv testkonto</button>
+        <div class="ak-auth-sub" style="margin-top:9px;font-size:11px;">Testkontoen gemmes kun lokalt på denne computer og ændrer ikke din rigtige konto.</div>
         ${loginFejl ? '<div class="ak-auth-error">' + escapeHtml(loginFejl) + '</div>' : ''}
       </div>
       ${renderThemeToggle()}
@@ -1828,6 +2093,7 @@
       document.getElementById('opretBtn').addEventListener('click', forsoegOpretKonto);
       document.getElementById('skiftTilLoginBtn').addEventListener('click', () => skiftLoginTilstand('login'));
     }
+    document.getElementById('testAccountBtn').addEventListener('click', aabnTestkonto);
   }
 
   function renderLoading(){
@@ -1874,8 +2140,20 @@
   }
 
   async function logUd(){
+    if(demoMode){ demoMode = false; state = null; currentUser = null; render(); return; }
     state = null;
     await signOut(auth);
+  }
+
+  function aabnTestkonto(){
+    let cached = null;
+    try { cached = JSON.parse(localStorage.getItem(DEMO_STATE_KEY) || 'null'); } catch(e){}
+    state = Object.assign(tomState(), cached || {});
+    state.sales = Array.isArray(state.sales) ? state.sales : [];
+    state.certificates = Array.isArray(state.certificates) ? state.certificates : [];
+    demoMode = true;
+    currentUser = { uid: 'local-demo', email: 'Testkonto · kun denne computer' };
+    render();
   }
 
   function renderApp(){
@@ -1901,10 +2179,10 @@
             </button>
           </nav>
           <div class="dash-sidebar-bottom">
-            <div class="ak-user-info">${escapeHtml(currentUser.email)}</div>
+            <div class="ak-user-info">${escapeHtml(currentUser.email)}${demoMode ? '<div style="font-size:10px;color:var(--yellow);margin-top:3px;">Testdata · ikke Firebase</div>' : ''}</div>
             <div class="dash-sidebar-actions">
               <button class="ak-settings-btn tip-right" id="openSettingsBtn" data-tip="Indstillinger" aria-label="Indstillinger">⚙️</button>
-              <button class="ak-logout-btn tip-right" id="logoutBtn" ${sidebarCollapsed ? 'data-tip="Log ud"' : ''}><span class="ak-logout-icon" aria-hidden="true">⏻</span><span class="ak-logout-label">Log ud</span></button>
+              <button class="ak-logout-btn tip-right" id="logoutBtn" ${sidebarCollapsed ? 'data-tip="Log ud"' : ''}><span class="ak-logout-icon" aria-hidden="true">⏻</span><span class="ak-logout-label">${demoMode ? 'Forlad testkonto' : 'Log ud'}</span></button>
             </div>
           </div>
         </aside>
@@ -1921,6 +2199,7 @@
       ${renderPfYearModal()}
       ${renderThemeToggle()}
       ${renderUndoToast()}
+      <div id="certificateToastContainer">${renderCertificateUndoToast()}</div>
       <div id="brokerToastContainer">${renderBrokerUndoToast()}</div>
       <div id="pfToastContainer">${renderPfUndoToast()}</div>
       <div id="pfReminderToastContainer">${renderPfReminderToast()}</div>
@@ -2008,21 +2287,13 @@
     window.__akActiveYear = activeYear;
     window.__akAndenVal = andenVal;
 
-    const askInline = askYearData.sales.length > 0 ? `
-      <div class="ak-ask-inline">
-        <div class="ak-ask-inline-head">
-          <div class="ak-ask-inline-title"><span class="ak-ask-badge">ASK</span> Aktiesparekonto · separat skatteoverblik</div>
-          <span class="ak-ask-inline-count">${askYearData.sales.length} salg</span>
-        </div>
-        <div class="ak-ask-inline-stats">
-          <div class="ak-ask-inline-stat"><div class="ak-ask-inline-label">Gevinst/tab</div><div class="ak-ask-inline-value ${askIsGain ? 'pos' : 'neg'}">${fmtKr(askYearData.totalGevinst)}</div></div>
-          <div class="ak-ask-inline-stat"><div class="ak-ask-inline-label">Vejledende skat 17%</div><div class="ak-ask-inline-value">${fmtKr(askYearData.totalSkat)}</div></div>
-          <div class="ak-ask-inline-stat"><div class="ak-ask-inline-label">Efter beregnet skat</div><div class="ak-ask-inline-value ${askYearData.netto >= 0 ? 'pos' : 'neg'}">${fmtKr(askYearData.netto)}</div></div>
-        </div>
-        <div class="ak-ask-inline-note">ASK-tallene holdes helt uden for 27/42%-beregningen og fremførte tab på dit almindelige depot. Bankens endelige ASK-skat opgøres efter lagerprincippet.${askYearData.carryOut > 0 ? ` Registreret ASK-tab til senere modregning: ${fmtKr(askYearData.carryOut)}.` : ''}</div>
-      </div>` : '';
+    const askInline = `
+      <div class="ak-tax-overview-head"><div><div class="ak-tax-overview-title">Skatteoverblik · aktiesparekonto</div><div class="ak-tax-overview-sub">ASK holdes adskilt fra dit almindelige depot og bruger en vejledende 17%-visning.</div></div><span class="ak-tax-overview-rate">ASK · 17%</span></div>
+      <div class="ak-summary"><div class="ak-card"><div class="ak-card-label">Gevinst/tab i alt</div><div class="ak-card-value ${askIsGain ? 'pos' : 'neg'}">${fmtKr(askYearData.totalGevinst)}</div></div><div class="ak-card"><div class="ak-card-label">Vejledende skat</div><div class="ak-card-value">${fmtKr(askYearData.totalSkat)}</div></div><div class="ak-card"><div class="ak-card-label">Efter skat</div><div class="ak-card-value ${askYearData.netto >= 0 ? 'pos' : 'neg'}">${fmtKr(askYearData.netto)}</div></div><div class="ak-card"><div class="ak-card-label">Handler i året</div><div class="ak-card-value">${askYearData.sales.length}</div></div></div>
+      <div class="ak-carry-note">ASK-tallene holdes helt uden for 27/42%-beregningen og fremførte tab på dit almindelige depot. Bankens lageropgørelse er den endelige.${askYearData.carryOut > 0 ? ` Registreret ASK-tab: ${fmtKr(askYearData.carryOut)}.` : ''}</div>
+      ${renderAskLedger(askYearData, activeYear)}`;
 
-    const allSales = (aktiesalgTab === 'ask' ? askYearData.sales : yearData.sales).slice().sort(saleChronology);
+    const allSales = sorterDepotHandler(aktiesalgTab === 'ask' ? askYearData.sales : yearData.sales, false);
     const allSalesHtml = allSales.length === 0
       ? `<div class="ak-empty-panel">Ingen salg registreret for ${activeYear}.</div>`
       : allSales.map(s => saleEntryHtml(s, { showYear: false, mode: 'year', showSats: s.satsmode !== 'ask' })).join('');
@@ -2031,7 +2302,7 @@
       <div class="ak-root aktiesalg-scope-${aktiesalgTab}">
         <div class="ak-view-header">
           <div class="ak-title">Aktiesalg &amp; skat</div>
-          <div class="ak-subtitle">Ét samlet overblik over årets salg. ASK-handler er markeret særskilt og påvirker ikke skatten på dit almindelige depot.</div>
+          <div class="ak-subtitle">${aktiesalgTab === 'ask' ? 'Se kun dine handler på aktiesparekontoen og deres separate skatteoverblik.' : 'Se kun handler på dit almindelige depot og det tilhørende skatteoverblik.'}</div>
         </div>
 
         ${renderAktiesalgTabs()}
@@ -2092,7 +2363,7 @@
           </div>
         </div>
 
-        <div class="ak-panel ask-only" style="display:${aktiesalgTab === 'ask' ? '' : 'none'};">${askInline || '<div class="ak-empty-panel">Ingen ASK-salg registreret for dette år endnu.</div>'}</div>
+        <div class="ak-panel ask-only" style="display:${aktiesalgTab === 'ask' ? '' : 'none'};">${askInline}</div>
 
         <div class="ak-panel">
           <div class="ak-list-header">
@@ -2100,12 +2371,12 @@
               <div class="ak-list-title">${aktiesalgTab === 'ask' ? 'ASK-salg' : 'Salg · almindeligt depot'} · ${activeYear}</div>
               <div style="font-size:11px;color:var(--text-faint);margin-top:2px;">${aktiesalgTab === 'ask' ? 'Kun handler på aktiesparekontoen vises her.' : 'Kun handler på dit almindelige aktiedepot vises her.'}</div>
             </div>
-            <button class="ak-add-btn" id="openAddBtn">+ Tilføj salg</button>
+            <div style="display:flex;gap:8px;align-items:center;"><select id="depotSortSelect" aria-label="Sortér handler" style="width:auto;"><option value="nyeste" ${depotSort === 'nyeste' ? 'selected' : ''}>Nyeste</option><option value="aeldste" ${depotSort === 'aeldste' ? 'selected' : ''}>Ældste</option><option value="resultat" ${depotSort === 'resultat' ? 'selected' : ''}>Størst afkast (kr.)</option><option value="procent" ${depotSort === 'procent' ? 'selected' : ''}>Størst afkast (%)</option></select><button class="ak-add-btn" id="openAddBtn">+ Tilføj salg</button></div>
           </div>
           <div class="ak-entry-list" id="salesList">${allSalesHtml}</div>
         </div>
 
-        <div class="ak-footnote">Se skattesatser og regler under ⚙️ Indstillinger → Om skattesatserne</div>
+        <div class="ak-footnote">${movedTradeNotice ? escapeHtml(movedTradeNotice) + ' ' : ''}Se skattesatser og regler under ⚙️ Indstillinger → Om skattesatserne</div>
       </div>
     `;
   }
@@ -2115,8 +2386,9 @@
     const years = window.__akYears, activeYearLocal = window.__akActiveYear, andenVal = window.__akAndenVal;
     const yearSelect = document.getElementById('yearSelect');
     yearSelect.innerHTML = years.map(y => `<option value="${y}" ${y === activeYearLocal ? 'selected' : ''}>${y}</option>`).join('');
-    yearSelect.addEventListener('change', () => { renderBloedt(() => { activeYear = parseInt(yearSelect.value); render(); }); });
+    yearSelect.addEventListener('change', () => { renderBloedt(() => { activeYear = parseInt(yearSelect.value); movedTradeNotice = ''; render(); }); });
     document.querySelectorAll('[data-sales-tab]').forEach(btn => btn.addEventListener('click', () => { aktiesalgTab = btn.dataset.salesTab; renderBloedt(); }));
+    document.getElementById('depotSortSelect').addEventListener('change', e => { depotSort = e.target.value; renderBloedt(); });
 
     if(aktiesalgTab === 'almindeligt' && andenEditing){
       const input = document.getElementById('andenInput');
@@ -2133,6 +2405,7 @@
       document.getElementById('andenEditBtn').addEventListener('click', () => { andenEditing = true; renderBloedt(); });
     }
     if(aktiesalgTab === 'almindeligt') document.getElementById('ledgerToggleBtn').addEventListener('click', () => { ledgerOpen = !ledgerOpen; renderBloedt(); });
+    if(aktiesalgTab === 'ask') document.getElementById('askLedgerToggleBtn').addEventListener('click', () => { askLedgerOpen = !askLedgerOpen; renderBloedt(); });
 
     document.querySelectorAll('[data-edit]').forEach(btn => btn.addEventListener('click', (e) => { e.stopPropagation(); openModal(btn.dataset.edit); }));
     document.querySelectorAll('[data-del]').forEach(btn => btn.addEventListener('click', (e) => { e.stopPropagation(); deleteSale(btn.dataset.del); }));
@@ -2147,22 +2420,65 @@
   function certificateResult(c){
     return (parseFloat(c.endValue) || 0) - (parseFloat(c.startValue) || 0) - (parseFloat(c.costs) || 0);
   }
+  function certificateYearFor(c){ return parseInt(String(c.date || '').slice(0,4), 10) || new Date().getFullYear(); }
 
   function certifikatEntryHtml(c){
     const result = certificateResult(c);
+    const pct = (parseFloat(c.startValue) || 0) > 0 ? (result / (parseFloat(c.startValue) || 1)) * 100 : 0;
     const rate = Math.max(0, Math.min(100, Number(state.certificateTaxRate) || 0));
     const tax = Math.max(0, result) * rate / 100;
+    const afterTax = result - tax;
     const model = { navn: c.name || 'Unavngivet certifikat', ticker: '', logoUrl: '', maegler: 'Certifikat', valuta: 'DKK' };
-    return `<div class="ak-entry cert-entry">
+    return `<div class="ak-entry cert-entry ${result >= 0 ? 'gain' : 'loss'}" data-cert-details="${escapeHtml(c.id)}" tabindex="0" role="button" aria-label="Vis detaljer om ${escapeHtml(c.name || 'certifikatet')}">
       <div class="ak-entry-row-top">${saleIdentityHtml(model, result >= 0, false).replace('<span class="ak-broker-badge">Certifikat</span>', '<span class="ak-ask-badge">CERTIFIKAT</span>')}
-        <div class="ak-entry-top-right"><span class="ak-entry-pct ${result >= 0 ? 'pos' : 'neg'}">${fmtKr(result)}</span><button class="ak-edit-btn" data-cert-edit="${escapeHtml(c.id)}" data-tip="Rediger" aria-label="Rediger certifikat">${iconEdit()}</button><button class="ak-del-btn" data-cert-delete="${escapeHtml(c.id)}" data-tip="Slet" aria-label="Slet certifikat">${iconTrash()}</button></div>
+        <div class="ak-entry-top-right"><span class="ak-entry-pct ${result >= 0 ? 'pos' : 'neg'}">${fmtPct(pct)}</span><button class="ak-edit-btn" data-cert-edit="${escapeHtml(c.id)}" data-tip="Rediger" aria-label="Rediger certifikat">${iconEdit()}</button><button class="ak-del-btn" data-cert-delete="${escapeHtml(c.id)}" data-tip="Slet" aria-label="Slet certifikat">${iconTrash()}</button><span class="ak-entry-chevron" aria-hidden="true">›</span></div>
       </div>
-      <div class="ak-entry-row-bottom"><span class="ak-entry-meta">${escapeHtml(c.kind || 'Certifikat')} · ${formatDatoDa(c.date)} · Start ${fmtKr(parseFloat(c.startValue)||0)} · Slut ${fmtKr(parseFloat(c.endValue)||0)}</span><span class="ak-fin-chips"><span class="ak-fin-chip"><span class="lbl">Resultat</span><span class="val ${result >= 0 ? 'pos' : 'neg'}">${fmtKr(result)}</span></span><span class="ak-fin-chip"><span class="lbl">Skat</span><span class="val">${fmtKr(tax)}</span></span></span></div>
+      <div class="ak-entry-row-bottom"><span class="ak-entry-meta">${escapeHtml(c.kind || 'Certifikat')} · ${formatDatoDa(c.date)} · Start ${fmtKr(parseFloat(c.startValue)||0)} · Slut ${fmtKr(parseFloat(c.endValue)||0)}</span><span class="ak-fin-chips"><span class="ak-fin-chip"><span class="lbl">Resultat</span><span class="val ${result >= 0 ? 'pos' : 'neg'}">${fmtKr(result)}</span></span><span class="ak-fin-chip"><span class="lbl">Skat</span><span class="val">${fmtKr(tax)}</span></span><span class="ak-fin-chip"><span class="lbl">Efter skat</span><span class="val ${afterTax >= 0 ? 'pos' : 'neg'}">${fmtKr(afterTax)}</span></span></span></div>
     </div>`;
   }
 
+  function renderCertifikatDetailsContent(c){
+    const result = certificateResult(c);
+    const start = parseFloat(c.startValue) || 0;
+    const end = parseFloat(c.endValue) || 0;
+    const costs = parseFloat(c.costs) || 0;
+    const pct = start > 0 ? (result / start) * 100 : 0;
+    const tax = Math.max(0, result) * (Math.max(0, Math.min(100, Number(state.certificateTaxRate) || 0)) / 100);
+    const afterTax = result - tax;
+    const gain = result >= 0;
+    return `<div class="ak-modal-header"><div class="ak-modal-title" id="saleDetailsTitle">Overblik over certifikatet</div><button class="ak-modal-close" id="saleDetailsClose" aria-label="Luk">×</button></div>
+      <div class="ak-sale-details-body"><div class="ak-details-hero">${saleIdentityHtml({navn:c.name || 'Unavngivet certifikat', maegler:'Certifikat', valuta:'DKK'}, gain, false).replace('<span class="ak-broker-badge">Certifikat</span>', '<span class="ak-ask-badge">CERTIFIKAT</span>')}<div class="ak-details-return"><div class="ak-details-return-value ${gain ? 'pos' : 'neg'}">${fmtPct(pct)}</div><div class="ak-details-return-label">Udvikling</div></div></div>
+      <div class="ak-details-story"><span aria-hidden="true">◈</span><span>Certifikatet har et resultat på <strong>${fmtKr(Math.abs(result))}</strong> svarende til <strong>${fmtPct(pct)}</strong>. Efter vejledende skat er resultatet <strong>${fmtKr(afterTax)}</strong>.</span></div>
+      <div class="ak-details-trade-grid"><section class="ak-details-trade-card purchase"><div class="ak-details-trade-head"><div class="ak-details-trade-title"><span class="ak-details-trade-icon">S</span>Start</div><span class="ak-details-trade-date">${formatDatoDa(c.date)}</span></div><div class="ak-details-trade-primary"><div class="ak-details-trade-primary-label">Startværdi / kostpris</div><div class="ak-details-trade-primary-value">${fmtKr(start)}</div></div></section><section class="ak-details-trade-card sale"><div class="ak-details-trade-head"><div class="ak-details-trade-title"><span class="ak-details-trade-icon">U</span>Slut</div><span class="ak-details-trade-date">${formatDatoDa(c.date)}</span></div><div class="ak-details-trade-primary"><div class="ak-details-trade-primary-label">Slutværdi / udbetaling</div><div class="ak-details-trade-primary-value">${fmtKr(end)}</div></div></section></div>
+      <div class="ak-details-summary"><div class="ak-details-stat"><div class="ak-details-stat-label">Handelsomkostninger</div><div class="ak-details-stat-value">${fmtKr(costs)}</div></div><div class="ak-details-stat"><div class="ak-details-stat-label">Resultat</div><div class="ak-details-stat-value ${gain ? 'pos' : 'neg'}">${fmtKr(result)}</div></div><div class="ak-details-stat"><div class="ak-details-stat-label">Vejledende skat</div><div class="ak-details-stat-value">${fmtKr(tax)}</div></div><div class="ak-details-stat"><div class="ak-details-stat-label">Efter skat</div><div class="ak-details-stat-value ${afterTax >= 0 ? 'pos' : 'neg'}">${fmtKr(afterTax)}</div></div></div>
+      <div class="ak-details-groups"><section class="ak-details-group"><div class="ak-details-group-title">Registrering</div><div class="ak-details-info-row"><span class="ak-details-info-label">Type</span><span class="ak-details-info-value">${escapeHtml(c.kind || 'Certifikat')}</span></div><div class="ak-details-info-row"><span class="ak-details-info-label">Skatteår</span><span class="ak-details-info-value">${certificateYearFor(c)}</span></div>${c.note ? `<div class="ak-details-info-row"><span class="ak-details-info-label">Note</span><span class="ak-details-info-value">${escapeHtml(c.note)}</span></div>` : ''}</section></div></div>
+      <div class="ak-sale-details-footer"><button class="ak-cancel-btn" id="saleDetailsCloseFooter">Luk</button><button class="ak-submit-btn" id="certDetailsEdit" style="flex:0 0 auto;">Rediger certifikat</button></div>`;
+  }
+
+  function openCertifikatDetails(id){
+    const cert = (state.certificates || []).find(c => c.id === id);
+    const overlay = document.getElementById('saleDetailsOverlay');
+    const content = document.getElementById('saleDetailsContent');
+    if(!cert || !overlay || !content) return;
+    certificateDetailsId = id;
+    content.innerHTML = renderCertifikatDetailsContent(cert);
+    overlay.classList.add('open'); overlay.setAttribute('aria-hidden','false'); lockBackgroundScroll(); wireBackdropClose(overlay, closeSaleDetails);
+    document.getElementById('saleDetailsClose').addEventListener('click', closeSaleDetails);
+    document.getElementById('saleDetailsCloseFooter').addEventListener('click', closeSaleDetails);
+    document.getElementById('certDetailsEdit').addEventListener('click', () => { overlay.classList.remove('open'); overlay.setAttribute('aria-hidden','true'); openCertifikatModal(id); });
+  }
+
+  function wireCertifikatCards(root){
+    if(!root) return;
+    root.querySelectorAll('[data-cert-details]').forEach(card => {
+      const open = e => { if(e.target.closest('button')) return; openCertifikatDetails(card.dataset.certDetails); };
+      card.addEventListener('click', open);
+      card.addEventListener('keydown', e => { if((e.key === 'Enter' || e.key === ' ') && !e.target.closest('button')){ e.preventDefault(); openCertifikatDetails(card.dataset.certDetails); } });
+    });
+  }
+
   function renderCertifikatModal(){
-    return `<div class="ak-modal-overlay" id="certModalOverlay" aria-hidden="true"><div class="ak-modal"><div class="ak-modal-header"><div class="ak-modal-title" id="certModalTitle">Tilføj certifikat</div><button class="ak-modal-close" id="certModalClose" aria-label="Luk">×</button></div><form id="certModalForm"><div class="ak-modal-body"><div class="ak-modal-form"><div class="ak-field-row"><div class="ak-field"><label for="certName">Navn / produkt</label><input id="certName" required placeholder="fx Bull/Bear-certifikat"></div><div class="ak-field"><label for="certKind">Type</label><input id="certKind" value="Certifikat" placeholder="fx open-end certifikat"></div></div><div class="ak-field-row"><div class="ak-field"><label for="certDate">Dato for opgørelse/salg</label><input id="certDate" type="date"></div><div class="ak-field"><label for="certCosts">Handelsomkostninger (DKK)</label><input id="certCosts" type="number" min="0" step="any" value="0"></div></div><div class="ak-field-row"><div class="ak-field"><label for="certStart">Startværdi / kostpris (DKK)</label><input id="certStart" type="number" min="0" step="any" required></div><div class="ak-field"><label for="certEnd">Slutværdi / udbetaling (DKK)</label><input id="certEnd" type="number" min="0" step="any" required></div></div><div class="ak-field"><label for="certNote">Note (valgfri)</label><input id="certNote" placeholder="fx ISIN eller skattebemærkning"></div><div class="cert-disclaimer">Handelsomkostninger fratrækkes resultatet før den vejledende skat beregnes.</div></div></div><div class="ak-modal-footer"><div class="ak-form-actions"><button type="button" class="ak-cancel-btn" id="certModalCancel">Annuller</button><button class="ak-submit-btn" id="certModalSave">Gem certifikat</button></div></div></form></div></div>`;
+    return `<div class="ak-modal-overlay" id="certModalOverlay" aria-hidden="true"><div class="ak-modal"><div class="ak-modal-header"><div class="ak-modal-title" id="certModalTitle">Tilføj certifikat</div><button class="ak-modal-close" id="certModalClose" aria-label="Luk">×</button></div><form id="certModalForm"><div class="ak-modal-body"><div class="ak-modal-form"><div class="ak-field-row"><div class="ak-field"><label for="certName">Navn / produkt</label><input id="certName" required placeholder="fx Bull/Bear-certifikat"></div><div class="ak-field"><label for="certKind">Type</label><input id="certKind" value="Certifikat" placeholder="fx open-end certifikat"></div></div><div class="ak-field-row"><div class="ak-field"><label for="certDate">Dato for opgørelse/salg</label><input id="certDate" type="date"></div><div class="ak-field"><label for="certCosts">Handelsomkostninger (DKK)</label><input id="certCosts" type="text" inputmode="decimal" value="0" placeholder="fx 30 + 20"><div class="ak-fx-hint" id="certCostsHint"></div></div></div><div class="ak-field-row"><div class="ak-field"><label for="certStart">Startværdi / kostpris (DKK)</label><input id="certStart" type="number" min="0" step="any" required></div><div class="ak-field"><label for="certEnd">Slutværdi / udbetaling (DKK)</label><input id="certEnd" type="number" min="0" step="any" required></div></div><div class="ak-field"><label for="certNote">Note (valgfri)</label><input id="certNote" placeholder="fx ISIN eller skattebemærkning"></div><div class="cert-disclaimer">Du kan skrive fx 30 + 20 i omkostninger. Summen fratrækkes resultatet før den vejledende skat beregnes.</div></div></div><div class="ak-modal-footer"><div class="ak-form-actions"><button type="button" class="ak-cancel-btn" id="certModalCancel">Annuller</button><button class="ak-submit-btn" id="certModalSave">Gem certifikat</button></div></div></form></div></div>`;
   }
 
   function openCertifikatModal(id){
@@ -2172,7 +2488,7 @@
     document.getElementById('certModalSave').textContent = cert ? 'Gem ændringer' : 'Tilføj certifikat';
     document.getElementById('certName').value = cert?.name || '';
     document.getElementById('certKind').value = cert?.kind || 'Certifikat';
-    document.getElementById('certDate').value = cert?.date || '';
+    document.getElementById('certDate').value = cert?.date || `${certificateYear || new Date().getFullYear()}-01-01`;
     document.getElementById('certStart').value = cert?.startValue ?? '';
     document.getElementById('certEnd').value = cert?.endValue ?? '';
     document.getElementById('certCosts').value = cert?.costs ?? '0';
@@ -2184,13 +2500,20 @@
 
   function wireCertifikatModal(){
     const form = document.getElementById('certModalForm');
+    const costsInput = document.getElementById('certCosts');
+    const updateCostsHint = () => { const sum = beregnUdtryk(costsInput.value); document.getElementById('certCostsHint').textContent = sum != null && /[+-]/.test(costsInput.value.trim().slice(1)) ? `= ${fmtKr(sum)}` : ''; };
+    costsInput.addEventListener('input', updateCostsHint);
+    updateCostsHint();
     document.getElementById('certModalClose').addEventListener('click', closeCertifikatModal);
     document.getElementById('certModalCancel').addEventListener('click', closeCertifikatModal);
-    form.addEventListener('submit', e => { e.preventDefault(); const item = { id: certificateEditingId === 'new' ? 'cert_' + Date.now() + '_' + Math.floor(Math.random()*1000) : certificateEditingId, name:document.getElementById('certName').value.trim(), kind:document.getElementById('certKind').value.trim(), date:document.getElementById('certDate').value, startValue:parseFloat(document.getElementById('certStart').value)||0, endValue:parseFloat(document.getElementById('certEnd').value)||0, costs:parseFloat(document.getElementById('certCosts').value)||0, note:document.getElementById('certNote').value.trim() }; if(!item.name) return; const i = state.certificates.findIndex(c => c.id === item.id); if(i >= 0) state.certificates[i] = item; else state.certificates.push(item); closeCertifikatModal(); save(); renderBloedt(); });
+    form.addEventListener('submit', e => { e.preventDefault(); const item = { id: certificateEditingId === 'new' ? 'cert_' + Date.now() + '_' + Math.floor(Math.random()*1000) : certificateEditingId, name:document.getElementById('certName').value.trim(), kind:document.getElementById('certKind').value.trim(), date:document.getElementById('certDate').value, startValue:parseFloat(document.getElementById('certStart').value)||0, endValue:parseFloat(document.getElementById('certEnd').value)||0, costs:beregnUdtryk(document.getElementById('certCosts').value) || 0, note:document.getElementById('certNote').value.trim() }; if(!item.name) return; const destinationYear = certificateYearFor(item); if(certificateYear && destinationYear !== certificateYear) movedTradeNotice = `Handlen blev flyttet til ${destinationYear}, fordi datoen er valgt i ${destinationYear}.`; certificateYear = destinationYear; const i = state.certificates.findIndex(c => c.id === item.id); if(i >= 0) state.certificates[i] = item; else state.certificates.push(item); closeCertifikatModal(); save(); renderBloedt(); });
   }
 
   function renderCertifikaterContent(embedded){
-    const certs = (state.certificates || []).slice().sort((a,b) => String(b.date || '').localeCompare(String(a.date || '')));
+    const allCerts = (state.certificates || []).slice().sort((a,b) => String(b.date || '').localeCompare(String(a.date || '')));
+    const certYears = Array.from(new Set(allCerts.map(certificateYearFor).concat([new Date().getFullYear()]))).sort((a,b) => b-a);
+    if(certificateYear === null || !certYears.includes(certificateYear)) certificateYear = certYears[0];
+    const certs = sorterDepotHandler(allCerts.filter(c => certificateYearFor(c) === certificateYear), true);
     const total = certs.reduce((sum, c) => sum + certificateResult(c), 0);
     const rate = Math.max(0, Math.min(100, Number(state.certificateTaxRate) || 0));
     const reserve = Math.max(0, total) * rate / 100;
@@ -2198,20 +2521,24 @@
     return `<div class="ak-root">
       <div class="ak-view-header"><div class="ak-title">${embedded ? 'Aktiesalg & skat' : 'Certifikater'}</div><div class="ak-subtitle">${embedded ? 'Certifikater er adskilt fra aktiedepot og ASK, så skatteoverblikket bliver klart.' : 'Et separat overblik til din årsopgørelse — holdt helt adskilt fra almindelige aktiesalg og ASK.'}</div></div>
       ${embedded ? renderAktiesalgTabs() : ''}
+      <div class="ak-panel ak-year-toolbar"><div class="ak-year-toolbar-copy"><div class="ak-year-toolbar-title">Vælg skatteår</div><div class="ak-year-toolbar-sub">Certifikater vises og opgøres pr. kalenderår.</div></div><select class="ak-year-select" id="certificateYearSelect" aria-label="Vælg certifikatår">${certYears.map(y => `<option value="${y}" ${y === certificateYear ? 'selected' : ''}>${y}</option>`).join('')}</select></div>
       <div class="ak-panel">
         <div class="cert-toolbar"><div><div class="ak-list-title">Vejledende skattereserve</div><div class="ak-subtitle">Du vælger selv den sats, du vil lægge til side.</div></div><div class="ak-field"><label for="certTaxRate">Vejledende skattesats (%)</label><input id="certTaxRate" type="number" min="0" max="100" step="0.1" value="${rate}"></div></div>
         <div class="cert-summary"><div class="ak-card"><div class="ak-card-label">Årets resultat</div><div class="ak-card-value ${total >= 0 ? 'pos' : 'neg'}">${fmtKr(total)}</div></div><div class="ak-card"><div class="ak-card-label">Sats til reserve</div><div class="ak-card-value">${rate.toLocaleString('da-DK',{maximumFractionDigits:1})}%</div></div><div class="ak-card"><div class="ak-card-label">Skat der skal betales</div><div class="ak-card-value">${fmtKr(reserve)}</div></div></div>
         <div class="cert-disclaimer"><strong>Vigtigt:</strong> Certifikater kan have en anden skattemæssig behandling end aktier og ASK, og nogle opgøres efter lagerprincippet. Brug resultatet som en personlig reserve. Kontrollér altid produktets skatteoplysninger og årsopgørelsen hos Skattestyrelsen.</div>
       </div>
-      <div class="ak-panel"><div class="ak-list-header"><div><div class="ak-list-title">Dine certifikat-handler</div><div class="ak-subtitle">Indtast startværdi og slutværdi/udbetaling for den relevante opgørelse.</div></div><button class="ak-add-btn" id="certAddBtn">+ Tilføj certifikat</button></div><div class="ak-entry-list">${certHtml}</div></div></div>`;
+      <div class="ak-panel"><div class="ak-list-header"><div><div class="ak-list-title">Certifikat-handler · ${certificateYear}</div><div class="ak-subtitle">Indtast startværdi og slutværdi/udbetaling for den relevante opgørelse.</div></div><div style="display:flex;gap:8px;align-items:center;"><select id="depotSortSelect" aria-label="Sortér handler" style="width:auto;"><option value="nyeste" ${depotSort === 'nyeste' ? 'selected' : ''}>Nyeste</option><option value="aeldste" ${depotSort === 'aeldste' ? 'selected' : ''}>Ældste</option><option value="resultat" ${depotSort === 'resultat' ? 'selected' : ''}>Størst afkast (kr.)</option><option value="procent" ${depotSort === 'procent' ? 'selected' : ''}>Størst afkast (%)</option></select><button class="ak-add-btn" id="certAddBtn">+ Tilføj certifikat</button></div></div><div class="ak-entry-list">${certHtml}</div></div>${movedTradeNotice ? `<div class="ak-footnote">${escapeHtml(movedTradeNotice)}</div>` : ''}</div>`;
   }
 
   function wireCertifikaterView(){
     document.querySelectorAll('[data-sales-tab]').forEach(btn => btn.addEventListener('click', () => { aktiesalgTab = btn.dataset.salesTab; renderBloedt(); }));
     document.getElementById('certTaxRate').addEventListener('change', e => { state.certificateTaxRate = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0)); save(); renderBloedt(); });
+    document.getElementById('certificateYearSelect').addEventListener('change', e => { certificateYear = parseInt(e.target.value, 10); movedTradeNotice = ''; renderBloedt(); });
+    document.getElementById('depotSortSelect').addEventListener('change', e => { depotSort = e.target.value; renderBloedt(); });
     document.getElementById('certAddBtn').addEventListener('click', () => openCertifikatModal(null));
     document.querySelectorAll('[data-cert-edit]').forEach(btn => btn.addEventListener('click', () => openCertifikatModal(btn.dataset.certEdit)));
-    document.querySelectorAll('[data-cert-delete]').forEach(btn => btn.addEventListener('click', () => { if(confirm('Slet dette certifikat?')){ state.certificates = state.certificates.filter(c => c.id !== btn.dataset.certDelete); save(); renderBloedt(); } }));
+    document.querySelectorAll('[data-cert-delete]').forEach(btn => btn.addEventListener('click', (e) => { e.stopPropagation(); deleteCertificate(btn.dataset.certDelete); }));
+    wireCertifikatCards(document.querySelector('.ak-entry-list'));
   }
 
   // ============ AFKASTBEREGNER VIEW ============
@@ -2626,7 +2953,17 @@
     const dele = s.split(/(?=[+-])/).map(d => d.trim()).filter(Boolean);
     let sum = 0, harTal = false;
     for(const del of dele){
-      const num = parseFloat(del.replace(/\s/g, '').replace(/\./g, '').replace(',', '.'));
+      let tal = del.replace(/\s/g, '');
+      const sidsteKomma = tal.lastIndexOf(',');
+      const sidstePunktum = tal.lastIndexOf('.');
+      if(sidsteKomma !== -1 && sidstePunktum !== -1){
+        // Sidste separator er decimaltegn: både 1.234,56 og 1,234.56 accepteres.
+        if(sidsteKomma > sidstePunktum) tal = tal.replace(/\./g, '').replace(',', '.');
+        else tal = tal.replace(/,/g, '');
+      } else if(sidsteKomma !== -1){
+        tal = tal.replace(',', '.');
+      }
+      const num = Number(tal);
       if(!Number.isFinite(num)) return null;
       sum += num; harTal = true;
     }
@@ -2922,14 +3259,14 @@
       id: c.id, isCertificate: true, navn: c.name || 'Unavngivet certifikat', type: 'Certifikat',
       kind: c.kind || 'Certifikat', salgDato: c.date || '', aar: parseInt(String(c.date || '').slice(0,4), 10) || new Date().getFullYear(),
       gevinst: certificateResult(c), skat: Math.max(0, certificateResult(c)) * (Number(state.certificateTaxRate) || 0) / 100,
-      maegler: 'Ikke angivet', note: c.note || ''
+      maegler: 'Ikke angivet', note: c.note || '', startValue: c.startValue, endValue: c.endValue, costs: c.costs, date: c.date
     }));
     return getAlleSalgBeregnet().concat(certs);
   }
 
   function certifikatSearchEntryHtml(c){
-    const result = c.gevinst || 0;
-    return `<div class="ak-entry ak-search-cert"><div class="ak-entry-left"><div class="ak-entry-identity"><span class="ak-entry-name">${escapeHtml(c.navn)}</span><span class="ak-entry-badges"><span class="ak-ask-badge">CERTIFIKAT</span><span class="ak-entry-broker">${escapeHtml(c.kind)}</span><span class="ak-entry-broker">${c.aar}</span></span></div></div><div class="ak-entry-right"><div class="ak-entry-amount ${result >= 0 ? 'pos' : 'neg'}">${fmtKr(result)}</div><div class="ak-entry-actions"><button class="ak-editlink" data-sog-cert-edit="${escapeHtml(c.id)}">Rediger</button><button class="ak-editlink" data-sog-cert-del="${escapeHtml(c.id)}">Slet</button></div></div></div>`;
+    const raw = { id:c.id, name:c.navn, kind:c.kind, date:c.date || c.salgDato, startValue:c.startValue, endValue:c.endValue, costs:c.costs };
+    return certifikatEntryHtml(raw).replaceAll('data-cert-edit=', 'data-sog-cert-edit=').replaceAll('data-cert-delete=', 'data-sog-cert-del=');
   }
 
   function filtrerOgSorterSalg(alle){
@@ -3025,7 +3362,7 @@
 
         <div class="ak-panel">
           <div class="ak-list-header">
-            <div class="ak-list-title">${filtered.length} ${filtered.length === 1 ? 'salg' : 'salg'} fundet</div>
+            <div class="ak-list-title">${filtered.length} ${filtered.length === 1 ? 'handel' : 'handler'} fundet</div>
           </div>
           <div class="ak-entry-list" id="sogList">
             ${filtered.length === 0 ? `<div class="ak-empty-panel">Ingen handler matcher din søgning.</div>` : filtered.map(s => s.isCertificate ? certifikatSearchEntryHtml(s) : saleEntryHtml(s, { showYear: true, mode: 'search', showSats: false })).join('')}
@@ -3052,8 +3389,9 @@
     document.querySelectorAll('[data-sog-edit]').forEach(btn => btn.addEventListener('click', (e) => { e.stopPropagation(); openModal(btn.dataset.sogEdit); }));
     document.querySelectorAll('[data-sog-del]').forEach(btn => btn.addEventListener('click', (e) => { e.stopPropagation(); deleteSale(btn.dataset.sogDel); }));
     document.querySelectorAll('[data-sog-cert-edit]').forEach(btn => btn.addEventListener('click', () => { const id = btn.dataset.sogCertEdit; currentView = 'aktiesalg'; aktiesalgTab = 'certifikater'; render(); openCertifikatModal(id); }));
-    document.querySelectorAll('[data-sog-cert-del]').forEach(btn => btn.addEventListener('click', () => { if(confirm('Slet dette certifikat?')){ state.certificates = state.certificates.filter(c => c.id !== btn.dataset.sogCertDel); save(); renderBloedt(); } }));
+    document.querySelectorAll('[data-sog-cert-del]').forEach(btn => btn.addEventListener('click', (e) => { e.stopPropagation(); deleteCertificate(btn.dataset.sogCertDel); }));
     wireSaleCards(document.getElementById('sogList'));
+    wireCertifikatCards(document.getElementById('sogList'));
   }
 
   // Live re-filter of just the list (keeps focus in the search box while typing)
@@ -3063,7 +3401,7 @@
     const listEl = document.getElementById('sogList');
     const titleEl = document.querySelector('.ak-list-title');
     if(!listEl) return;
-    if(titleEl) titleEl.textContent = `${filtered.length} ${filtered.length === 1 ? 'salg' : 'salg'} fundet`;
+    if(titleEl) titleEl.textContent = `${filtered.length} ${filtered.length === 1 ? 'handel' : 'handler'} fundet`;
     listEl.innerHTML = filtered.length === 0
       ? `<div class="ak-empty-panel">Ingen salg matcher din søgning.</div>`
       : filtered.map(s => s.isCertificate ? certifikatSearchEntryHtml(s) : saleEntryHtml(s, { showYear: true, mode: 'search', showSats: false })).join('');
@@ -3101,6 +3439,7 @@
           </div>
           <div class="ak-modal-body">
             <div class="ak-modal-form">
+              <div class="ak-field"><label for="handelType">Handelstype</label><select id="handelType"><option value="almindeligt">Almindeligt aktiedepot</option><option value="ask">Aktiesparekonto (ASK)</option><option value="certifikat">Certifikat</option></select><div class="ak-tax-choice-note">Vælg hvor handlen skal registreres. Certifikat åbner det tilpassede certifikat-skema.</div></div>
               <div class="ak-field-row">
                 <div class="ak-field">
                   <label for="ticker">Tickerkode</label>
@@ -3382,6 +3721,7 @@
     }
     unlockBackgroundScroll();
     detailsSaleId = null;
+    certificateDetailsId = null;
   }
 
   function wireSaleCards(root){
@@ -3679,6 +4019,11 @@
   }
 
   function wireModalInputs(){
+    document.getElementById('handelType').addEventListener('change', (e) => {
+      if(e.target.value === 'certifikat'){ closeModal(); aktiesalgTab = 'certifikater'; openCertifikatModal(null); return; }
+      document.getElementById('satsmode').value = e.target.value === 'ask' ? 'ask' : 'auto';
+      updatePreview();
+    });
     document.getElementById('addLotBtn').addEventListener('click', () => { draftLots.push({ dato: '', antal: '', kurs: '', rate: '1', mode: 'dkk', totalDkk: '', komk: '0' }); renderLots(); });
     document.getElementById('valuta').addEventListener('change', haandterValutaValg);
     document.getElementById('maegler').addEventListener('change', haandterMaeglerValg);
@@ -3770,6 +4115,7 @@
       document.getElementById('antalSolgt').value = s.antalSolgt;
       document.getElementById('salgsomk').value = s.salgsomk;
       document.getElementById('satsmode').value = s.satsmode || 'auto';
+      document.getElementById('handelType').value = s.satsmode === 'ask' ? 'ask' : 'almindeligt';
       draftLots = (s.buys || []).map(b => ({ dato: b.dato || '', antal: b.antal ?? '', kurs: b.kurs ?? '', rate: String(b.rate ?? 1), mode: b.mode || 'kurs', totalDkk: b.totalDkk != null ? String(b.totalDkk) : '', komk: b.komk != null ? String(b.komk) : '0' }));
       if(draftLots.length === 0) draftLots = [{ dato: '', antal: '', kurs: '', rate: '1', mode: 'dkk', totalDkk: '', komk: '0' }];
       draftSalgMode = s.salgMode || 'kurs';
@@ -3796,6 +4142,7 @@
       document.getElementById('antalSolgt').value = '';
       document.getElementById('salgsomk').value = '0';
       document.getElementById('satsmode').value = defaultSatsmode || 'auto';
+      document.getElementById('handelType').value = defaultSatsmode === 'ask' ? 'ask' : 'almindeligt';
       draftLots = [{ dato: '', antal: '', kurs: '', rate: '1', mode: 'dkk', totalDkk: '', komk: '0' }];
       draftSalgMode = 'dkk';
       draftSalgBelobDkk = '';
@@ -3841,6 +4188,7 @@
       state.sales.push(draft);
     }
     save();
+    if(activeYear && draft.aar !== activeYear) movedTradeNotice = `Handlen blev flyttet til ${draft.aar}, fordi salgsdatoen er valgt i ${draft.aar}.`;
     activeYear = draft.aar;
     editingId = null;
     unlockBackgroundScroll();
@@ -3875,6 +4223,7 @@
   }
 
   onAuthStateChanged(auth, (user) => {
+    if(demoMode) return;
     currentUser = user;
     if(user){ loginFejl = ''; loadData(); }
     else { render(); }
