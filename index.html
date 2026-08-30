@@ -219,6 +219,9 @@
   .ak-auth-secondary { background: transparent; color: var(--text); border: 1px solid var(--border) !important; }
   .ak-auth-secondary:hover { background: var(--hover); }
   .ak-auth-error { font-size: 12.5px; color: var(--red); margin-top: 10px; }
+  .ak-auth-message { font-size: 12.5px; color: var(--green); margin-top: 10px; line-height: 1.45; }
+  .ak-auth-forgot { display: inline-flex; margin-top: 10px; padding: 0; border: 0; background: transparent; color: var(--navy); font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+  .ak-auth-forgot:hover { filter: brightness(0.8); }
   .ak-loading { max-width: 860px; margin: 100px auto; text-align: center; color: var(--text-muted); font-size: 14px; display: flex; flex-direction: column; align-items: center; gap: 14px; }
   .ak-spinner { width: 26px; height: 26px; border-radius: 50%; border: 3px solid var(--border); border-top-color: var(--navy); animation: ak-spin 0.7s linear infinite; }
   @keyframes ak-spin { to { transform: rotate(360deg); } }
@@ -820,7 +823,7 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
   import {
-    getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
+    getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail,
     onAuthStateChanged, signOut
   } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
   import {
@@ -1271,9 +1274,11 @@
     const header = `<button class="ak-ledger-header" id="askLedgerToggleBtn"><span class="ak-ledger-arrow ${askLedgerOpen ? 'open' : ''}">▸</span><span>ASK-skatterapport ${year}</span></button>`;
     if(!askLedgerOpen) return `<div class="ak-ledger">${header}</div>`;
     const rows = (yearData.sales || []).map(s => `<div class="ak-ledger-row"><span class="k">${escapeHtml((s.gevinst >= 0 ? 'Gevinst' : 'Tab') + ' – ' + (s.navn || 'salg'))}</span><span class="v ${s.gevinst >= 0 ? 'pos' : 'neg'}">${fmtKr(s.gevinst)}</span></div>`).join('') || '<div class="ak-ledger-empty">Tilføj din første ASK-handel, så bygger rapporten sig selv op her.</div>';
-    const carry = yearData.carryIn > 0 ? `<div class="ak-ledger-row"><span class="k">Fremført ASK-tab fra ${year - 1}</span><span class="v neg">${fmtKr(-yearData.carryIn)}</span></div>` : '';
-    const carryOut = yearData.carryOut > 0 ? `<div class="ak-ledger-row"><span class="k">ASK-tab til fremførsel</span><span class="v neg">${fmtKr(yearData.carryOut)}</span></div>` : '';
-    return `<div class="ak-ledger">${header}${carry}${rows}<div class="ak-ledger-row"><span class="k">= Årets nettoresultat</span><span class="v">${fmtKr(yearData.totalGevinst)}</span></div>${carryOut}<div class="ak-ledger-row total"><span class="k">Vejledende ASK-skat (17%)</span><span class="v">${fmtKr(yearData.totalSkat)}</span></div><div class="ak-ledger-row total"><span class="k">Efter skat</span><span class="v ${yearData.netto >= 0 ? 'pos' : 'neg'}">${fmtKr(yearData.netto)}</span></div></div>`;
+    const carryTaxIn = yearData.carryIn * 0.17;
+    const carryTaxOut = yearData.carryOut * 0.17;
+    const carry = yearData.carryIn > 0 ? `<div class="ak-ledger-row"><span class="k">Fremført negativ ASK-skat fra ${year - 1}</span><span class="v neg">${fmtKr(-carryTaxIn)}</span></div>` : '';
+    const carryOut = yearData.carryOut > 0 ? `<div class="ak-ledger-row"><span class="k">Negativ ASK-skat til fremførsel</span><span class="v neg">${fmtKr(-carryTaxOut)}</span></div><div class="ak-ledger-row"><span class="k">≈ Positivt ASK-afkast, der kan dækkes før ny skat</span><span class="v">${fmtKr(yearData.carryOut)}</span></div>` : '';
+    return `<div class="ak-ledger">${header}${carry}${rows}<div class="ak-ledger-row"><span class="k">= Årets resultat i denne visning</span><span class="v">${fmtKr(yearData.totalGevinst)}</span></div>${carryOut}<div class="ak-ledger-row total"><span class="k">Vejledende ASK-skat efter modregning (17%)</span><span class="v">${fmtKr(yearData.totalSkat)}</span></div><div class="ak-ledger-row total"><span class="k">Efter skat</span><span class="v ${yearData.netto >= 0 ? 'pos' : 'neg'}">${fmtKr(yearData.netto)}</span></div></div>`;
   }
 
 
@@ -2061,6 +2066,7 @@
   function render(){
     if(!currentUser && !demoMode){ renderAuthScreen(); return; }
     if(indlaeserData || !state){ renderLoading(); return; }
+    tjekPfPaamindelse();
     renderApp();
   }
 
@@ -2070,7 +2076,7 @@
       <div class="ak-auth-wrap">
         <div class="ak-auth-title">Aktiesalg &amp; skat</div>
         <div class="ak-auth-sub">${loginTilstand === 'login' ? 'Log ind for at se dine salg' : 'Opret en konto for at komme i gang'}</div>
-        <input type="email" id="auth-email" placeholder="Email" autocomplete="email">
+        <input type="email" id="auth-email" placeholder="Email" autocomplete="email" value="${escapeHtml(authEmailDraft)}">
         <input type="password" id="auth-password" placeholder="Adgangskode (mindst 6 tegn)" autocomplete="current-password">
         <div class="ak-auth-actions">
           ${loginTilstand === 'login'
@@ -2078,17 +2084,22 @@
             : '<button class="ak-auth-primary" id="opretBtn">Opret konto</button><button class="ak-auth-secondary" id="skiftTilLoginBtn">Log ind i stedet</button>'
           }
         </div>
+        ${loginTilstand === 'login' ? '<button class="ak-auth-forgot" id="forgotPasswordBtn" type="button">Glemt adgangskode?</button>' : ''}
         <button class="ak-auth-secondary" id="testAccountBtn" style="width:100%;margin-top:10px;">Prøv testkonto</button>
         <div class="ak-auth-sub" style="margin-top:9px;font-size:11px;">Testkontoen gemmes kun lokalt på denne computer og ændrer ikke din rigtige konto.</div>
         ${loginFejl ? '<div class="ak-auth-error">' + escapeHtml(loginFejl) + '</div>' : ''}
+        ${loginBesked ? '<div class="ak-auth-message">' + escapeHtml(loginBesked) + '</div>' : ''}
       </div>
       ${renderThemeToggle()}
     `;
+    const emailEl = document.getElementById('auth-email');
+    emailEl.addEventListener('input', () => { authEmailDraft = emailEl.value; });
     const pwEl = document.getElementById('auth-password');
     pwEl.addEventListener('keydown', (e) => { if(e.key === 'Enter'){ loginTilstand === 'login' ? forsoegLogin() : forsoegOpretKonto(); } });
     if(loginTilstand === 'login'){
       document.getElementById('loginBtn').addEventListener('click', forsoegLogin);
       document.getElementById('skiftTilOpretBtn').addEventListener('click', () => skiftLoginTilstand('opret'));
+      document.getElementById('forgotPasswordBtn').addEventListener('click', sendNulstilAdgangskode);
     } else {
       document.getElementById('opretBtn').addEventListener('click', forsoegOpretKonto);
       document.getElementById('skiftTilLoginBtn').addEventListener('click', () => skiftLoginTilstand('login'));
@@ -2105,8 +2116,10 @@
   }
 
   let loginFejl = '';
+  let loginBesked = '';
+  let authEmailDraft = '';
   let loginTilstand = 'login';
-  function skiftLoginTilstand(t){ loginTilstand = t; loginFejl = ''; renderAuthScreen(); }
+  function skiftLoginTilstand(t){ loginTilstand = t; loginFejl = ''; loginBesked = ''; renderAuthScreen(); }
 
   function oversaetAuthFejl(kode){
     const fejl = {
@@ -2122,8 +2135,9 @@
   }
 
   async function forsoegLogin(){
-    loginFejl = '';
+    loginFejl = ''; loginBesked = '';
     const email = document.getElementById('auth-email').value.trim();
+    authEmailDraft = email;
     const password = document.getElementById('auth-password').value;
     if(!email || !password){ loginFejl = 'Udfyld både email og adgangskode.'; renderAuthScreen(); return; }
     try { await signInWithEmailAndPassword(auth, email, password); }
@@ -2131,12 +2145,27 @@
   }
 
   async function forsoegOpretKonto(){
-    loginFejl = '';
+    loginFejl = ''; loginBesked = '';
     const email = document.getElementById('auth-email').value.trim();
+    authEmailDraft = email;
     const password = document.getElementById('auth-password').value;
     if(!email || !password){ loginFejl = 'Udfyld både email og adgangskode.'; renderAuthScreen(); return; }
     try { await createUserWithEmailAndPassword(auth, email, password); }
     catch(e){ loginFejl = oversaetAuthFejl(e.code); renderAuthScreen(); }
+  }
+
+  async function sendNulstilAdgangskode(){
+    loginFejl = ''; loginBesked = '';
+    const email = document.getElementById('auth-email').value.trim();
+    authEmailDraft = email;
+    if(!email){ loginFejl = 'Skriv din email først, så sender vi et nulstillingslink.'; renderAuthScreen(); return; }
+    try {
+      await sendPasswordResetEmail(auth, email);
+      loginBesked = 'Hvis der findes en konto med denne email, er et link til nulstilling af adgangskoden sendt.';
+    } catch(e) {
+      loginFejl = e.code === 'auth/invalid-email' ? 'Email-adressen ser ikke rigtig ud.' : 'Kunne ikke sende nulstillingslinket. Prøv igen om lidt.';
+    }
+    renderAuthScreen();
   }
 
   async function logUd(){
@@ -2287,10 +2316,11 @@
     window.__akActiveYear = activeYear;
     window.__akAndenVal = andenVal;
 
+    const askCarryTax = askYearData.carryOut * 0.17;
     const askInline = `
       <div class="ak-tax-overview-head"><div><div class="ak-tax-overview-title">Skatteoverblik · aktiesparekonto</div><div class="ak-tax-overview-sub">ASK holdes adskilt fra dit almindelige depot og bruger en vejledende 17%-visning.</div></div><span class="ak-tax-overview-rate">ASK · 17%</span></div>
-      <div class="ak-summary"><div class="ak-card"><div class="ak-card-label">Gevinst/tab i alt</div><div class="ak-card-value ${askIsGain ? 'pos' : 'neg'}">${fmtKr(askYearData.totalGevinst)}</div></div><div class="ak-card"><div class="ak-card-label">Vejledende skat</div><div class="ak-card-value">${fmtKr(askYearData.totalSkat)}</div></div><div class="ak-card"><div class="ak-card-label">Efter skat</div><div class="ak-card-value ${askYearData.netto >= 0 ? 'pos' : 'neg'}">${fmtKr(askYearData.netto)}</div></div><div class="ak-card"><div class="ak-card-label">Handler i året</div><div class="ak-card-value">${askYearData.sales.length}</div></div></div>
-      <div class="ak-carry-note">ASK-tallene holdes helt uden for 27/42%-beregningen og fremførte tab på dit almindelige depot. Bankens lageropgørelse er den endelige.${askYearData.carryOut > 0 ? ` Registreret ASK-tab: ${fmtKr(askYearData.carryOut)}.` : ''}</div>
+      <div class="ak-summary"><div class="ak-card"><div class="ak-card-label">Gevinst/tab i alt</div><div class="ak-card-value ${askIsGain ? 'pos' : 'neg'}">${fmtKr(askYearData.totalGevinst)}</div></div><div class="ak-card"><div class="ak-card-label">Beregnet skat på salg</div><div class="ak-card-value">${fmtKr(askYearData.totalSkat)}</div></div><div class="ak-card"><div class="ak-card-label">Efter skat</div><div class="ak-card-value ${askYearData.netto >= 0 ? 'pos' : 'neg'}">${fmtKr(askYearData.netto)}</div></div><div class="ak-card"><div class="ak-card-label">Tab til modregning</div><div class="ak-card-value ${askYearData.carryOut > 0 ? 'neg' : ''}">${fmtKr(askCarryTax)}</div></div></div>
+      <div class="ak-carry-note">ASK-tallene holdes helt uden for 27/42%-beregningen og fremførte tab på dit almindelige depot. Bankens lageropgørelse er den endelige.${askYearData.carryOut > 0 ? ` Den viste negative ASK-skat på ${fmtKr(askCarryTax)} svarer vejledende til ${fmtKr(askYearData.carryOut)} i fremtidigt positivt ASK-afkast, før der igen beregnes ASK-skat.` : askYearData.carryIn > 0 ? ` Fremført negativ ASK-skat fra tidligere år er medregnet i årets vejledende skat.` : ''}</div>
       ${renderAskLedger(askYearData, activeYear)}`;
 
     const allSales = sorterDepotHandler(aktiesalgTab === 'ask' ? askYearData.sales : yearData.sales, false);
@@ -2971,18 +3001,40 @@
   }
 
   let pendingPfReminder = null;
+  let pfReminderDatoNoegle = '';
 
-  function tjekPfPaamindelse(sale){
-    if(!sale || !sale.salgDato) return;
-    const dele = String(sale.salgDato).split('-').map(Number);
-    if(dele.length !== 3 || dele.some(Number.isNaN)) return;
-    const aar = dele[0], maaned = dele[1];
-    const findes = (state.portefolje || []).some(e => e.aar === aar && e.maaned === maaned);
-    if(!findes){
-      pendingPfReminder = { aar, maaned };
-      refreshPfReminderToast();
-    }
+  function erSidsteDagIMaaned(dato){
+    const aar = dato.getFullYear();
+    const maaned = dato.getMonth();
+    return dato.getDate() === new Date(aar, maaned + 1, 0).getDate();
   }
+
+  function aktuelPfPaamindelse(){
+    if(!state) return null;
+    const nu = new Date();
+    if(!erSidsteDagIMaaned(nu)) return null;
+    const aar = nu.getFullYear(), maaned = nu.getMonth() + 1;
+    const findes = (state.portefolje || []).some(e => e.aar === aar && e.maaned === maaned);
+    return findes ? null : { aar, maaned };
+  }
+
+  function tjekPfPaamindelse(){
+    if(!state) return;
+    const nu = new Date();
+    pfReminderDatoNoegle = `${nu.getFullYear()}-${nu.getMonth()+1}-${nu.getDate()}`;
+    pendingPfReminder = aktuelPfPaamindelse();
+  }
+
+  // Holder påmindelsen korrekt, hvis appen står åben hen over midnat.
+  setInterval(() => {
+    if(!state || (!currentUser && !demoMode)) return;
+    const nu = new Date();
+    const noegle = `${nu.getFullYear()}-${nu.getMonth()+1}-${nu.getDate()}`;
+    if(noegle !== pfReminderDatoNoegle){
+      tjekPfPaamindelse();
+      renderBloedt();
+    }
+  }, 60000);
 
   function refreshPfReminderToast(){
     const el = document.getElementById('pfReminderToastContainer');
@@ -2990,13 +3042,16 @@
   }
 
   function renderPfReminderToast(){
-    if(!pendingPfReminder) return '';
-    return `<button class="ak-undo-btn ak-undo-btn-tertiary" onclick="aabnPfPaamindelse()">📊 Husk porteføljeværdi for ${MAANEDSNAVNE[pendingPfReminder.maaned-1]} ${pendingPfReminder.aar} · Tilføj</button>`;
+    // Beregn igen her, så en gammel påmindelse aldrig kan vises efter navigation eller en opdatering.
+    const target = aktuelPfPaamindelse();
+    pendingPfReminder = target;
+    if(!target) return '';
+    return `<button class="ak-undo-btn ak-undo-btn-tertiary" onclick="aabnPfPaamindelse()">📊 Husk at opdatere månedsopdatering · ${MAANEDSNAVNE[target.maaned-1]} ${target.aar}</button>`;
   }
 
   window.aabnPfPaamindelse = function(){
-    if(!pendingPfReminder) return;
-    const target = pendingPfReminder;
+    const target = aktuelPfPaamindelse();
+    if(!target) return;
     pendingPfReminder = null;
     refreshPfReminderToast();
     currentView = 'portefolje';
@@ -3027,6 +3082,8 @@
     if(idx === -1) return;
     const [removed] = state.portefolje.splice(idx, 1);
     save();
+    tjekPfPaamindelse();
+    refreshPfReminderToast();
     if(pendingPfDeleteTimer) clearTimeout(pendingPfDeleteTimer);
     pendingPfDelete = removed;
     refreshPfToast();
@@ -3040,6 +3097,7 @@
     pendingPfDelete = null;
     if(pendingPfDeleteTimer) clearTimeout(pendingPfDeleteTimer);
     save();
+    tjekPfPaamindelse();
     refreshPfToast();
     renderBloedt();
   };
@@ -3204,6 +3262,7 @@
     }
     upsertPortefoljeEntry(aar, maaned, document.getElementById('pfVaerdi').value, document.getElementById('pfIndskud').value, document.getElementById('pfNote').value);
     save();
+    tjekPfPaamindelse();
     closePfModal();
     renderBloedt();
   }
@@ -4192,7 +4251,6 @@
     activeYear = draft.aar;
     editingId = null;
     unlockBackgroundScroll();
-    tjekPfPaamindelse(draft);
     render();
   }
 
