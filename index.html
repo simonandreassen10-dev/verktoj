@@ -2955,14 +2955,14 @@
         <div class="ak-panel">
           <div class="ak-list-header" style="margin-bottom:10px;">
             <div class="ak-list-title">Månedlig log</div>
-            <button class="ak-add-btn" id="pfAddBtn">+ Tilføj måned</button>
+            <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="ak-cancel-btn" id="pfQuickAddBtn">Tilføj indskud / udtræk</button><button class="ak-add-btn" id="pfAddBtn">+ Tilføj måned</button></div>
           </div>
           ${rows.length === 0 ? `<div class="ak-empty-panel">Ingen måneder tilføjet endnu. Klik "+ Tilføj måned" for at komme i gang — du kan sagtens starte med ældre data, fx fra sidste år.</div>` : `
           <div class="pf-table-wrap">
             <table class="pf-table">
               <thead>
                 <tr>
-                  <th>År</th><th>Måned</th><th>Værdi</th><th>Indskud</th><th>Ændring</th><th>%</th>
+                  <th>År</th><th>Måned</th><th>Værdi</th><th title="Indskud minus udtræk">Nettoindskud</th><th>Ændring</th><th>%</th>
                 </tr>
               </thead>
               <tbody>${aarBlokke}</tbody>
@@ -3014,7 +3014,7 @@
     const nu = new Date();
     if(!erSidsteDagIMaaned(nu)) return null;
     const aar = nu.getFullYear(), maaned = nu.getMonth() + 1;
-    const findes = (state.portefolje || []).some(e => e.aar === aar && e.maaned === maaned);
+    const findes = (state.portefolje || []).some(e => e.aar === aar && e.maaned === maaned && Number.isFinite(e.vaerdi));
     return findes ? null : { aar, maaned };
   }
 
@@ -3072,6 +3072,7 @@
       entry = { aar, maaned };
       state.portefolje.push(entry);
     }
+    if(entry.indskud !== indskud){ delete entry.cashIn; delete entry.cashOut; }
     entry.vaerdi = vaerdi; entry.indskud = indskud; entry.note = note || null;
     entry.vaerdiRaw = String(vaerdiRaw == null ? '' : vaerdiRaw).trim() || null;
     entry.indskudRaw = String(indskudRaw == null ? '' : indskudRaw).trim() || null;
@@ -3182,6 +3183,68 @@
     return sidste.maaned === 12 ? { aar: sidste.aar + 1, maaned: 1 } : { aar: sidste.aar, maaned: sidste.maaned + 1 };
   }
 
+
+  function monthCashFlows(entry){
+    const net = entry?.indskud || 0;
+    if(Number.isFinite(entry?.cashIn) && Number.isFinite(entry?.cashOut) &&
+       Math.abs(entry.cashIn - entry.cashOut - net) < 0.005){
+      return {incoming:entry.cashIn, outgoing:entry.cashOut, legacy:false};
+    }
+    return {incoming:Math.max(0,net), outgoing:Math.max(0,-net), legacy:!!net};
+  }
+
+  function openQuickMonthDeposit(selectedMonth){
+    document.getElementById('pfModalOverlay').outerHTML = renderPfModal();
+    const overlay = document.getElementById('pfModalOverlay');
+    overlay.classList.add('open');
+    lockBackgroundScroll();
+    wireBackdropClose(overlay, closePfModal);
+    const now = new Date();
+    const month = typeof selectedMonth === 'string' ? selectedMonth : now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+    document.getElementById('pfModalHeader').innerHTML = '<div class="ak-modal-header"><div class="ak-modal-title">Indskud og udtræk</div><button class="ak-modal-close" id="quickClose" aria-label="Luk">×</button></div>';
+    document.getElementById('pfModalBody').innerHTML = '<form id="quickMonthForm" style="padding:22px"><p style="margin:0 0 18px;font-size:13px;color:var(--text-muted);line-height:1.6">Se og ret månedens samlede indskud og udtræk.</p><div class="ak-field"><label for="quickMonth">Måned</label><input id="quickMonth" type="month" required value="'+month+'"></div><div class="ak-field-row"><div class="ak-field"><label for="quickIncoming">Indskud (kr.)</label><input id="quickIncoming" type="text" inputmode="decimal" placeholder="0,00"></div><div class="ak-field"><label for="quickOutgoing">Udtræk (kr.)</label><input id="quickOutgoing" type="text" inputmode="decimal" placeholder="0,00"></div></div><p style="font-size:11px;color:var(--text-muted);line-height:1.6">Begge beløb skrives positivt. Tilføj fx + 500 til et eksisterende beløb, eller ret totalen direkte. Tomt felt tæller som 0.</p><div class="ak-carry-note" id="quickTotal" aria-live="polite"></div><div id="quickLegacy" style="font-size:11px;color:var(--text-muted);margin-bottom:12px"></div><div id="quickError" role="alert" style="color:var(--red);font-size:12px"></div><div class="ak-modal-footer" style="padding:16px 0 0"><button type="button" class="ak-cancel-btn" id="quickCancel">Annuller</button><button type="submit" class="ak-submit-btn">Gem ændringer</button></div></form>';
+    const monthInput=document.getElementById('quickMonth');
+    const incoming=document.getElementById('quickIncoming');
+    const outgoing=document.getElementById('quickOutgoing');
+    const existing=()=>(state.portefolje || []).find(e=>e.aar===Number(monthInput.value.slice(0,4)) && e.maaned===Number(monthInput.value.slice(5,7)));
+    const read=input=>input.value.trim() ? beregnUdtryk(input.value) : 0;
+    const valid=n=>Number.isFinite(n) && n>=0;
+    const update=()=>{
+      const a=read(incoming), b=read(outgoing);
+      document.getElementById('quickTotal').textContent=valid(a)&&valid(b) ? 'Månedens nettoindskud: '+fmtKr(Math.round((a-b)*100)/100)+' · indskud minus udtræk' : 'Skriv gyldige beløb på 0 kr. eller mere.';
+      document.getElementById('quickError').textContent='';
+    };
+    const load=()=>{
+      const flows=monthCashFlows(existing());
+      incoming.value=String(flows.incoming).replace('.',',');
+      outgoing.value=String(flows.outgoing).replace('.',',');
+      document.getElementById('quickLegacy').textContent=flows.legacy ? 'Tidligere er kun nettobeløbet gemt. Det vises som ét beløb her; du kan rette fordelingen.' : '';
+      update();
+    };
+    monthInput.addEventListener('change',load);
+    incoming.addEventListener('input',update);
+    outgoing.addEventListener('input',update);
+    document.getElementById('quickClose').onclick=closePfModal;
+    document.getElementById('quickCancel').onclick=closePfModal;
+    document.getElementById('quickMonthForm').onsubmit=e=>{
+      e.preventDefault();
+      const a=read(incoming), b=read(outgoing);
+      if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(monthInput.value)||!valid(a)||!valid(b)){
+        document.getElementById('quickError').textContent='Vælg en måned og skriv gyldige, positive beløb eller 0.'; return;
+      }
+      const [aar,maaned]=monthInput.value.split('-').map(Number);
+      state.portefolje=state.portefolje || [];
+      let entry=existing();
+      if(!entry){entry={aar,maaned,vaerdi:null,note:null};state.portefolje.push(entry);}
+      entry.cashIn=Math.round(a*100)/100;
+      entry.cashOut=Math.round(b*100)/100;
+      entry.indskud=Math.round((entry.cashIn-entry.cashOut)*100)/100;
+      entry.indskudRaw=String(entry.indskud).replace('.',',');
+      save();closePfModal();render();
+    };
+    load();incoming.focus();
+  }
+
   function openPfModal(eksisterende){
     pfEditingKey = eksisterende ? { aar: eksisterende.aar, maaned: eksisterende.maaned } : null;
     document.getElementById('pfModalOverlay').outerHTML = renderPfModal();
@@ -3208,9 +3271,10 @@
         </div>
         <div class="ak-field"><label for="pfVaerdi">Værdi af portefølje (kr.)</label><input type="text" id="pfVaerdi" value="${escapeHtml(talTilFelt(start.vaerdiRaw, start.vaerdi))}" autofocus></div>
         <div class="ak-field">
-          <label for="pfIndskud">Indskudt denne måned (kr.) <span class="ak-hint-inline">— flere indbetalinger? Skriv fx 305 + 474 + 945. Udtræk: skriv negativt</span></label>
+          <label for="pfIndskud">Nettoindskud denne måned (kr.) <span class="ak-hint-inline">— indskud minus udtræk. Skriv fx 1.000 - 300. Dine løbende registreringer er med i beløbet.</span></label>
           <input type="text" id="pfIndskud" value="${escapeHtml(talTilFelt(start.indskudRaw, start.indskud))}">
           <div class="ak-fx-hint" id="pfIndskudSum"></div>
+          <button type="button" class="ak-editlink" id="pfEditFlows">Rediger indskud og udtræk separat</button>
         </div>
         <div class="ak-field"><label for="pfNote">Note <span class="ak-hint-inline">(valgfri, fx "solgte TSLA")</span></label><input type="text" id="pfNote" value="${start.note ? escapeHtml(start.note) : ''}"></div>
         <div class="ak-modal-footer" style="padding:16px 0 0; border-top:none; display:flex; gap:10px; justify-content:space-between;">
@@ -3225,6 +3289,12 @@
     document.getElementById('pfModalClose').addEventListener('click', closePfModal);
     document.getElementById('pfCancelBtn').addEventListener('click', closePfModal);
     document.getElementById('pfSaveBtn').addEventListener('click', savePfModal);
+    document.getElementById('pfEditFlows').onclick = () => {
+      const key = document.getElementById('pfAar').value + '-' + String(document.getElementById('pfMaaned').value).padStart(2,'0');
+      const changed = document.getElementById('pfVaerdi').value !== talTilFelt(start.vaerdiRaw,start.vaerdi) || document.getElementById('pfIndskud').value !== talTilFelt(start.indskudRaw,start.indskud) || document.getElementById('pfNote').value !== (start.note || '');
+      if(changed && !confirm('Åbn indskud og udtræk uden at gemme ændringerne i denne månedsformular?')) return;
+      closePfModal(); openQuickMonthDeposit(key);
+    };
     const indskudEl = document.getElementById('pfIndskud');
     const opdaterIndskudSum = () => {
       const hint = document.getElementById('pfIndskudSum');
@@ -3268,6 +3338,7 @@
   }
 
   function wirePortefoljeView(){
+    document.getElementById('pfQuickAddBtn').addEventListener('click', openQuickMonthDeposit);
     document.getElementById('pfAddBtn').addEventListener('click', () => openPfModal(null));
     document.querySelectorAll('.pf-row').forEach(row => {
       const aabn = () => {
