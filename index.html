@@ -815,7 +815,9 @@
   @media (max-width:760px) { .cert-summary, .cert-editor-grid { grid-template-columns:1fr; } .cert-toolbar { align-items:stretch; flex-direction:column; } }
 </style>
 
-</head>
+<style>.ov-toolbar,.ov-controls,.ov-welcome,.ov-chart-head,.ov-section-head{display:flex;align-items:center;justify-content:space-between;gap:14px}.ov-toolbar{margin-bottom:30px}.ov-tag{font-size:10px;letter-spacing:.09em;color:var(--navy);font-weight:700}.ov-controls select{background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:9px}.ov-welcome{margin-bottom:24px}.ov-card{padding:20px 16px;box-shadow:none!important}.ov-card p{margin:9px 0 0;font-size:11px;line-height:1.5;color:var(--text-muted)}.ov-card .ak-card-value{font-size:24px;white-space:nowrap}.ov-notice{display:flex;gap:13px;align-items:center;background:var(--soft-navy);border-radius:10px;padding:14px 18px;margin:18px 0;color:var(--text)}.ov-notice>span{font-size:25px;color:var(--navy)}.ov-notice strong{font-size:12px}.ov-notice p{font-size:11px;margin:4px 0 0;color:var(--text-muted)}.ov-chart{padding:24px!important;margin-top:20px}.ov-chart h2,.ov-bottom h2{font-size:15px;margin:0;letter-spacing:-.2px}.ov-chart-head p{font-size:11px;color:var(--text-muted);margin:5px 0}.ov-switch{display:inline-flex;background:var(--entry-bg);padding:4px;border-radius:9px;gap:3px}.ov-switch button{border:0;background:transparent;padding:8px 11px;border-radius:6px;font:600 11px Inter,sans-serif;color:var(--text-muted);cursor:pointer}.ov-switch button[aria-pressed=true]{background:var(--card);color:var(--text);box-shadow:0 1px 5px var(--shadow)}.ov-unit{margin-top:12px}.ov-chart svg{margin-top:22px}.ov-caption{font-size:11px;color:var(--text-muted);line-height:1.65;margin:14px 0 0}.ov-bottom{display:grid;grid-template-columns:1.25fr 1fr;gap:16px;margin-top:18px}.ov-bottom .ak-panel{padding:22px}.ov-section-head>span{font-size:11px;color:var(--text-muted)}.ov-tax-row{display:flex;justify-content:space-between;gap:15px;padding:16px 0;border-bottom:1px solid var(--border);font-size:12px}.ov-tax-row small{display:block;margin-top:5px;font-size:10px;color:var(--text-muted)}.ov-tax-row strong{white-space:nowrap}.ov-explainer{font-size:13px;color:var(--text-muted);line-height:1.8}.ov-formula{padding:20px;background:var(--entry-bg);border-radius:10px;font-size:17px;line-height:1.8;color:var(--navy);font-weight:600}.ov-bottom .ak-editlink{margin-top:15px}.ov-cards{gap:10px}.ov-toolbar button{font-size:11px}
+@media(max-width:1000px){.ov-cards{grid-template-columns:repeat(2,minmax(0,1fr))}.ov-chart-head{flex-wrap:wrap}}@media(max-width:620px){.ov-toolbar,.ov-welcome{align-items:flex-start;flex-direction:column}.ov-bottom{grid-template-columns:1fr}.ov-chart{padding:16px!important}.ov-card .ak-card-value{font-size:19px}.ov-card{padding:15px 12px}.ov-toolbar{margin-bottom:20px}}
+</style></head>
 <body>
 
 <div id="app"></div>
@@ -980,7 +982,7 @@
   let ledgerOpen = false;
   let askLedgerOpen = false;
   let andenEditing = false;
-  let currentView = 'aktiesalg';
+  let currentView = 'overblik';
   let sidebarCollapsed = localStorage.getItem('verktoj-sidebar-collapsed') === '1';
   let editingId = null;
   let draftLots = [{ dato: '', antal: '', kurs: '', rate: '1', mode: 'dkk', totalDkk: '', komk: '0' }];
@@ -2194,6 +2196,7 @@
             <button class="dash-collapse-btn tip-right" id="sidebarToggleBtn" data-tip="${sidebarCollapsed ? 'Fold menu ud' : 'Fold menu sammen'}">${sidebarCollapsed ? '›' : '‹'}</button>
           </div>
           <nav class="dash-nav">
+            <button class="dash-nav-item tip-right ${currentView === 'overblik' ? 'active' : ''}" data-view="overblik" aria-label="Overblik"><span class="dash-nav-icon">◈</span><span class="dash-nav-label">Overblik</span></button>
             <button class="dash-nav-item tip-right ${currentView === 'portefolje' ? 'active' : ''}" data-view="portefolje" ${sidebarCollapsed ? 'data-tip="Månedsopdatering"' : ''}>
               <span class="dash-nav-icon">📊</span><span class="dash-nav-label">Månedsopdatering</span>
             </button>
@@ -2216,7 +2219,7 @@
           </div>
         </aside>
         <main class="dash-content">
-          ${currentView === 'aktiesalg' ? renderAktiesalgContent() : currentView === 'sog' ? renderSogContent() : currentView === 'afkast' ? renderAfkastContent() : renderPortefoljeContent()}
+          ${currentView === 'overblik' ? renderOverview() : currentView === 'aktiesalg' ? renderAktiesalgContent() : currentView === 'sog' ? renderSogContent() : currentView === 'afkast' ? renderAfkastContent() : renderPortefoljeContent()}
         </main>
       </div>
 
@@ -2260,10 +2263,11 @@
     document.getElementById('openSettingsBtn').addEventListener('click', openSettingsModal);
     document.getElementById('logoutBtn').addEventListener('click', logUd);
 
-    if(currentView === 'aktiesalg') wireAktiesalgView();
+    if(currentView === 'overblik') wireOverviewControls();
+    else if(currentView === 'aktiesalg') wireAktiesalgView();
     else if(currentView === 'sog') wireSogView();
     else if(currentView === 'afkast') wireAfkastView();
-    else wirePortefoljeView();
+    else {wirePortefoljeView();wireOverviewControls();}
 
     if(document.getElementById('modalOverlay').classList.contains('open')) wireModalInputs();
     wireCertifikatModal();
@@ -2876,7 +2880,7 @@
   }
 
   function renderPortefoljeContent(){
-    const rows = computePortefoljeRows();
+    const rows = overviewRows();
     const stats = computePortefoljeStats(rows);
 
     let aarBlokke = '';
@@ -2902,7 +2906,7 @@
     return `
       <div class="ak-root">
         <div class="ak-view-header">
-          <div class="ak-title">Månedsopdatering</div>
+          ${overviewToolbar()}<div class="ak-title">Månedsopdatering</div>
           <div class="ak-subtitle">Indtast din porteføljeværdi måned for måned — afkastet beregnes automatisk og holder indskud ude af regnestykket.</div>
         </div>
 
@@ -2948,7 +2952,7 @@
             </div>
           </div>
           ` : ''}
-          ${chartSvg ? `<div style="margin-top:14px;">${chartSvg}</div>` : ''}
+          ${renderOverviewChart(rows)}
         </div>
         ` : ''}
 
@@ -2962,7 +2966,7 @@
             <table class="pf-table">
               <thead>
                 <tr>
-                  <th>År</th><th>Måned</th><th>Værdi</th><th title="Indskud minus udtræk">Nettoindskud</th><th>Ændring</th><th>%</th>
+                  <th>År</th><th>Måned</th><th>Værdi</th><th title="Indskud minus udtræk">Nettoindskud</th><th>Afkast</th><th>Afkast %</th>
                 </tr>
               </thead>
               <tbody>${aarBlokke}</tbody>
@@ -2971,7 +2975,7 @@
           `}
         </div>
 
-        <div class="ak-footnote">Ændring pr. måned = denne måneds værdi − sidste måneds værdi − dette måneds indskud.</div>
+        <div class="ak-footnote">Afkast pr. måned = slutværdi − startværdi − indskud + udtræk. Procentafkast er vejledende, da datoerne for pengebevægelser ikke indgår.</div>
       </div>
     `;
   }
@@ -4362,6 +4366,72 @@
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('./service-worker.js', { scope: './' }).catch(err => console.warn('Service worker kunne ikke registreres', err));
     });
+  }
+
+  let overviewYear = new Date().getFullYear();
+  let overviewChart = 'value';
+  let overviewUnit = 'kr';
+  // A monthly return requires adjacent valuations. Missing months are never
+  // presented as zero return or silently bridged into a single month.
+  function overviewRows(){
+    const rows=computePortefoljeRows();
+    rows.forEach((r,i)=>{
+      const prev=rows[i-1];
+      if(!prev || prev.vaerdi==null || (r.aar*12+r.maaned)-(prev.aar*12+prev.maaned)!==1){r.endringKr=null;r.endringPct=null;}
+      if(prev && prev.vaerdi+(r.indskud||0)<=0)r.endringPct=null;
+    });
+    return rows;
+  }
+  function overviewMetrics(rows,year){
+    const yearly=rows.filter(r=>r.aar===year), valued=yearly.filter(r=>r.vaerdi!=null);
+    const last=valued.at(-1), measured=yearly.filter(r=>r.endringKr!=null);
+    const expected=last?last.maaned:0;
+    const complete=expected>0 && measured.length===expected;
+    return {last,measured,complete,gain:measured.reduce((a,r)=>a+r.endringKr,0), pct:measured.every(r=>r.endringPct!=null)?measured.reduce((a,r)=>a*(1+r.endringPct/100),1)*100-100:null};
+  }
+  function renderOverviewChart(rows){
+    const yearRows=rows.filter(r=>r.aar===overviewYear);
+    const tabs=`<div class="ov-chart-head"><div><h2>Din udvikling</h2><p>${overviewChart==='value'?'Porteføljeværdi inklusive indskud og udtræk':'Afkast efter korrektion for indskud og udtræk'}</p></div><div class="ov-switch" role="group" aria-label="Diagramtype"><button data-chart="value" aria-pressed="${overviewChart==='value'}">Porteføljeværdi</button><button data-chart="returns" aria-pressed="${overviewChart==='returns'}">Månedligt afkast</button></div></div>`;
+    const unit=overviewChart==='returns'?`<div class="ov-unit ov-switch" role="group" aria-label="Afkast enhed"><button data-unit="kr" aria-pressed="${overviewUnit==='kr'}">Kroner</button><button data-unit="pct" aria-pressed="${overviewUnit==='pct'}">Procent</button></div>`:'';
+    let chart='';
+    if(overviewChart==='value'){
+      const baseline=rows.find(r=>r.aar===overviewYear-1&&r.maaned===12);
+      chart=buildPortefoljeChartSvg(baseline?[baseline,...yearRows]:yearRows);
+    }else{
+      const values=yearRows.filter(r=>r.endringKr!=null);
+      if(values.length){
+        const get=r=>overviewUnit==='kr'?r.endringKr:r.endringPct;
+        const limit=Math.max(1,...values.map(r=>Math.abs(get(r)||0)));
+        chart=`<svg viewBox="0 0 720 270" role="img" aria-label="Månedligt afkast i ${overviewUnit==='kr'?'kroner':'procent'}" class="afk-chart-svg">${[-1,-0.5,0,0.5,1].map(f=>`<line x1="60" x2="705" y1="${130-f*90}" y2="${130-f*90}" stroke="var(--border)"/><text x="52" y="${134-f*90}" text-anchor="end" fill="var(--text-faint)" font-size="10">${overviewUnit==='kr'?fmtKrShort(f*limit):(f*limit).toFixed(1)+'%'}</text>`).join('')}${Array.from({length:12},(_,i)=>{
+          const r=yearRows.find(r=>r.maaned===i+1),v=r&&r.endringKr!=null?get(r):null,x=72+i*53;
+          return `${v==null?`<text x="${x+15}" y="135" text-anchor="middle" fill="var(--text-faint)" font-size="13">–</text>`:`<rect x="${x}" y="${v>=0?130-v/limit*90:130}" width="30" height="${Math.max(1,Math.abs(v)/limit*90)}" rx="3" fill="${v>=0?'var(--green)':'var(--red)'}"><title>${MAANEDSNAVNE[i]}: ${overviewUnit==='kr'?fmtKr(v):fmtPct(v)}</title></rect>`}<text x="${x+15}" y="251" text-anchor="middle" fill="var(--text-muted)" font-size="10">${MAANEDSNAVNE[i].slice(0,3)}</text>`;
+        }).join('')}</svg>`;
+      }
+    }
+    return `<section class="ak-panel ov-chart">${tabs}${unit}${chart||'<div class="ak-empty-panel">Tilføj to sammenhængende måneders porteføljeværdi for at se udviklingen.</div>'}<div class="ov-caption">${overviewChart==='returns'?'En streg betyder, at månedens afkast endnu ikke kan beregnes. Procenter er vejledende: indskuddenes dato i måneden indgår ikke.':'Værdien viser både dine investeringers udvikling og pengene, du selv har sat ind eller taget ud.'}</div></section>`;
+  }
+  function overviewToolbar(){
+    const years=Array.from(new Set(state.portefolje.map(r=>r.aar).concat(state.sales.map(r=>r.aar),state.certificates.map(c=>certificateYearFor(c)),[new Date().getFullYear()]))).sort((a,b)=>b-a);
+    return `<div class="ov-toolbar"><div class="ov-tag">DIT OVERBLIK</div><div class="ov-controls"><label for="ovYear">Vis år</label><select id="ovYear" aria-label="Vælg år">${years.map(y=>`<option ${y===overviewYear?'selected':''}>${y}</option>`).join('')}</select></div></div>`;
+  }
+  function renderOverview(){
+    const rows=overviewRows(), m=overviewMetrics(rows,overviewYear), last=m.last;
+    const {perYear,askPerYear}=computeAll();
+    const normal=perYear[overviewYear],ask=askPerYear[overviewYear];
+    const certs=state.certificates.filter(c=>certificateYearFor(c)===overviewYear);
+    const certTax=Math.max(0,certs.reduce((n,c)=>n+certificateResult(c),0))*state.certificateTaxRate/100;
+    const hasTax=(normal?.sales.length||0)+(ask?.sales.length||0)+certs.length>0;
+    const tax=Math.max(0,normal?.totalSkat||0)+Math.max(0,ask?.totalSkat||0)+certTax;
+    const card=(label,value,sub,positive)=>`<div class="ak-card ov-card"><div class="ak-card-label">${label}</div><div class="ak-card-value ${positive===true?'pos':positive===false?'neg':''}">${value}</div><p>${sub}</p></div>`;
+    const missing=rows.find(r=>r.aar===overviewYear&&r.vaerdi==null);
+    return `<div class="ak-root">${overviewToolbar()}<div class="ov-welcome"><div><div class="ak-title">Dit overblik</div><div class="ak-subtitle">Følg din formue, dit afkast og årets registrerede handler.</div></div><button class="ak-add-btn" id="ovUpdate">Opdater portefølje →</button></div><div class="ak-summary ov-cards">${card('Porteføljeværdi',last?fmtKr(last.vaerdi):'—',last?'Senest opdateret · '+MAANEDSNAVNE[last.maaned-1]+' '+overviewYear:'Ingen værdi registreret')}${card('Seneste måneds afkast',last?.endringKr!=null?fmtKr(last.endringKr):'—',last?MAANEDSNAVNE[last.maaned-1]+(last.endringPct!=null?' · '+fmtPct(last.endringPct):' · mangler sammenligningsgrundlag'):'Afventer månedsopdatering',last?.endringKr!=null?last.endringKr>=0:undefined)}${card('Årets afkast',m.measured.length?fmtKr(m.gain):'—',m.complete?'Januar–'+MAANEDSNAVNE[last.maaned-1]+(m.pct!=null?' · '+fmtPct(m.pct)+' vejledende':' · procent kan ikke beregnes'):m.measured.length+' beregnelige måneder · ufuldstændigt år',m.measured.length?m.gain>=0:undefined)}${card('Skatteestimat · '+overviewYear,hasTax?fmtKr(tax):'—','Kun registrerede handler · se fordeling nedenfor')}</div>${missing?`<div class="ov-notice"><span>◷</span><div><strong>${MAANEDSNAVNE[missing.maaned-1]} mangler porteføljeværdi</strong><p>Nettoindskud på ${fmtKr(missing.indskud||0)} er gemt. Månedens afkast vises, når værdien er udfyldt.</p></div></div>`:''}${renderOverviewChart(rows)}<div class="ov-bottom"><section class="ak-panel"><div class="ov-section-head"><h2>Årets skatteestimat</h2><span>${overviewYear}</span></div><div class="ov-tax-row"><span>Almindeligt depot<small>Estimeret skat af registrerede salg</small></span><strong>${fmtKr(Math.max(0,normal?.totalSkat||0))}</strong></div><div class="ov-tax-row"><span>Aktiesparekonto<small>Salgsbaseret visning · usolgte aktiver mangler</small></span><strong>${fmtKr(Math.max(0,ask?.totalSkat||0))}</strong></div><div class="ov-tax-row"><span>Certifikater<small>Vejledende reserve · valgt sats ${state.certificateTaxRate}%</small></span><strong>${fmtKr(certTax)}</strong></div><p class="ov-caption">Beløbene er estimater fra appens eksisterende beregninger. De er ikke en samlet skatteregning. Fremførsel og modregning holdes inden for hver kategori.</p><button class="ak-editlink" id="ovTaxes">Se handler og skatteoverblik →</button></section><section class="ak-panel"><h2>Afkast, der er til at forstå</h2><p class="ov-explainer">Dit afkast er ændringen i porteføljens værdi, efter at indskud og udtræk er trukket ud af regnestykket.</p><div class="ov-formula">Slutværdi − startværdi<br>− indskud + udtræk</div><p class="ov-caption">Skatteestimatet trækkes ikke fra afkastet her. Medregn kontanter på depotet i din porteføljeværdi. Manglende måneder tæller ikke som nulafkast.</p></section></div></div>`;
+  }
+  function wireOverviewControls(){
+    document.querySelectorAll('[data-chart]').forEach(b=>b.onclick=()=>{overviewChart=b.dataset.chart;render();});
+    document.querySelectorAll('[data-unit]').forEach(b=>b.onclick=()=>{overviewUnit=b.dataset.unit;render();});
+    const year=document.getElementById('ovYear');if(year)year.onchange=()=>{overviewYear=Number(year.value);render();};
+    const update=document.getElementById('ovUpdate');if(update)update.onclick=()=>{currentView='portefolje';render();openPfModal(null);};
+    const taxes=document.getElementById('ovTaxes');if(taxes)taxes.onclick=()=>{currentView='aktiesalg';activeYear=overviewYear;render();};
   }
 
   onAuthStateChanged(auth, (user) => {
