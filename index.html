@@ -2890,7 +2890,7 @@
           ${idx === 0 ? `<td class="pf-year-cell" rowspan="${blok.length}" data-pf-year-click="${aar}">${aar}</td>` : ''}
           <td>${MAANEDSNAVNE[r.maaned - 1]}${r.note ? `<div class="pf-note">${escapeHtml(r.note)}</div>` : ''}</td>
           <td class="pf-num">${r.vaerdi != null ? fmtKr(r.vaerdi) : '–'}</td>
-          <td class="pf-num">${r.indskud != null ? fmtKr(r.indskud) : '–'}</td>
+          <td class="pf-num">${r.indskud != null && r.indskud !== 0 ? fmtKr(r.indskud) : '0 kr.'}</td>
           <td class="pf-change-kr ${r.endringKr == null ? 'pf-change-empty' : r.endringKr >= 0 ? 'pos' : 'neg'}">${r.endringKr == null ? '–' : fmtKr(r.endringKr)}</td>
           <td class="pf-change-pct ${r.endringPct == null ? 'pf-change-empty' : r.endringPct >= 0 ? 'pos' : 'neg'}">${r.endringPct == null ? '–' : fmtPct(r.endringPct)}</td>
         </tr>
@@ -3173,14 +3173,8 @@
   }
 
   function naesteMaanedEfterSeneste(){
-    const log = Array.isArray(state.portefolje) ? state.portefolje : [];
-    if(!log.length){
-      const now = new Date();
-      return { aar: now.getFullYear(), maaned: now.getMonth() + 1 };
-    }
-    const sorted = log.slice().sort((a, b) => a.aar - b.aar || a.maaned - b.maaned);
-    const sidste = sorted[sorted.length - 1];
-    return sidste.maaned === 12 ? { aar: sidste.aar + 1, maaned: 1 } : { aar: sidste.aar, maaned: sidste.maaned + 1 };
+    const now = new Date();
+    return { aar: now.getFullYear(), maaned: now.getMonth() + 1 };
   }
 
 
@@ -3246,6 +3240,9 @@
   }
 
   function openPfModal(eksisterende){
+    const selected = eksisterende || naesteMaanedEfterSeneste();
+    const stored = (state.portefolje || []).find(e => e.aar === selected.aar && e.maaned === selected.maaned);
+    eksisterende = stored || null;
     pfEditingKey = eksisterende ? { aar: eksisterende.aar, maaned: eksisterende.maaned } : null;
     document.getElementById('pfModalOverlay').outerHTML = renderPfModal();
     const overlay = document.getElementById('pfModalOverlay');
@@ -3253,7 +3250,8 @@
     lockBackgroundScroll();
     wireBackdropClose(overlay, closePfModal);
 
-    const start = eksisterende || Object.assign({ vaerdi: null, indskud: null, note: null }, naesteMaanedEfterSeneste());
+    const start = eksisterende || Object.assign({ vaerdi: null, indskud: null, note: null }, selected);
+    const flows = monthCashFlows(stored);
     const talTilFelt = (raw, num) => raw != null ? raw : (num != null ? String(num).replace('.', ',') : '');
     document.getElementById('pfModalHeader').innerHTML = `
       <div class="ak-modal-header">
@@ -3269,6 +3267,7 @@
             <select id="pfMaaned">${MAANEDSNAVNE.map((navn, idx) => `<option value="${idx+1}" ${idx+1 === start.maaned ? 'selected' : ''}>${navn}</option>`).join('')}</select>
           </div>
         </div>
+        ${stored && (stored.indskud != null || stored.cashIn != null || stored.cashOut != null) ? `<div class="ak-carry-note" role="status">Allerede registreret for ${MAANEDSNAVNE[start.maaned-1]} ${start.aar}: ${flows.legacy ? `nettoindskud <strong>${fmtKr(stored.indskud || 0)}</strong>` : `indskud <strong>${fmtKr(flows.incoming)}</strong> og udtræk <strong>${fmtKr(flows.outgoing)}</strong>`}. Beløbet er med i feltet nedenfor og skal ikke tilføjes igen.</div>` : ''}
         <div class="ak-field"><label for="pfVaerdi">Værdi af portefølje (kr.)</label><input type="text" id="pfVaerdi" value="${escapeHtml(talTilFelt(start.vaerdiRaw, start.vaerdi))}" autofocus></div>
         <div class="ak-field">
           <label for="pfIndskud">Nettoindskud denne måned (kr.) <span class="ak-hint-inline">— indskud minus udtræk. Skriv fx 1.000 - 300. Dine løbende registreringer er med i beløbet.</span></label>
@@ -3289,6 +3288,20 @@
     document.getElementById('pfModalClose').addEventListener('click', closePfModal);
     document.getElementById('pfCancelBtn').addEventListener('click', closePfModal);
     document.getElementById('pfSaveBtn').addEventListener('click', savePfModal);
+    const switchMonth = () => {
+      const aar = Number(document.getElementById('pfAar').value);
+      const maaned = Number(document.getElementById('pfMaaned').value);
+      if(!Number.isInteger(aar) || aar < 1000 || aar > 9999 || maaned < 1 || maaned > 12) return;
+      const changed = document.getElementById('pfVaerdi').value !== talTilFelt(start.vaerdiRaw,start.vaerdi) || document.getElementById('pfIndskud').value !== talTilFelt(start.indskudRaw,start.indskud) || document.getElementById('pfNote').value !== (start.note || '');
+      if(changed && !confirm('Skift måned uden at gemme dine ændringer?')){
+        document.getElementById('pfAar').value = start.aar;
+        document.getElementById('pfMaaned').value = start.maaned;
+        return;
+      }
+      closePfModal(); openPfModal({aar, maaned});
+    };
+    document.getElementById('pfAar').addEventListener('change', switchMonth);
+    document.getElementById('pfMaaned').addEventListener('change', switchMonth);
     document.getElementById('pfEditFlows').onclick = () => {
       const key = document.getElementById('pfAar').value + '-' + String(document.getElementById('pfMaaned').value).padStart(2,'0');
       const changed = document.getElementById('pfVaerdi').value !== talTilFelt(start.vaerdiRaw,start.vaerdi) || document.getElementById('pfIndskud').value !== talTilFelt(start.indskudRaw,start.indskud) || document.getElementById('pfNote').value !== (start.note || '');
