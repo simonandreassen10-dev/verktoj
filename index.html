@@ -817,6 +817,14 @@
 
 <style>.ov-toolbar,.ov-controls,.ov-welcome,.ov-chart-head,.ov-section-head{display:flex;align-items:center;justify-content:space-between;gap:14px}.ov-toolbar{margin-bottom:30px}.ov-tag{font-size:10px;letter-spacing:.09em;color:var(--navy);font-weight:700}.ov-controls select{background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:9px}.ov-welcome{margin-bottom:24px}.ov-card{padding:20px 16px;box-shadow:none!important}.ov-card p{margin:9px 0 0;font-size:11px;line-height:1.5;color:var(--text-muted)}.ov-card .ak-card-value{font-size:24px;white-space:nowrap}.ov-notice{display:flex;gap:13px;align-items:center;background:var(--soft-navy);border-radius:10px;padding:14px 18px;margin:18px 0;color:var(--text)}.ov-notice>span{font-size:25px;color:var(--navy)}.ov-notice strong{font-size:12px}.ov-notice p{font-size:11px;margin:4px 0 0;color:var(--text-muted)}.ov-chart{padding:24px!important;margin-top:20px}.ov-chart h2,.ov-bottom h2{font-size:15px;margin:0;letter-spacing:-.2px}.ov-chart-head p{font-size:11px;color:var(--text-muted);margin:5px 0}.ov-switch{display:inline-flex;background:var(--entry-bg);padding:4px;border-radius:9px;gap:3px}.ov-switch button{border:0;background:transparent;padding:8px 11px;border-radius:6px;font:600 11px Inter,sans-serif;color:var(--text-muted);cursor:pointer}.ov-switch button[aria-pressed=true]{background:var(--card);color:var(--text);box-shadow:0 1px 5px var(--shadow)}.ov-unit{margin-top:12px}.ov-chart svg{margin-top:22px}.ov-caption{font-size:11px;color:var(--text-muted);line-height:1.65;margin:14px 0 0}.ov-bottom{display:grid;grid-template-columns:1.25fr 1fr;gap:16px;margin-top:18px}.ov-bottom .ak-panel{padding:22px}.ov-section-head>span{font-size:11px;color:var(--text-muted)}.ov-tax-row{display:flex;justify-content:space-between;gap:15px;padding:16px 0;border-bottom:1px solid var(--border);font-size:12px}.ov-tax-row small{display:block;margin-top:5px;font-size:10px;color:var(--text-muted)}.ov-tax-row strong{white-space:nowrap}.ov-explainer{font-size:13px;color:var(--text-muted);line-height:1.8}.ov-formula{padding:20px;background:var(--entry-bg);border-radius:10px;font-size:17px;line-height:1.8;color:var(--navy);font-weight:600}.ov-bottom .ak-editlink{margin-top:15px}.ov-cards{gap:10px}.ov-toolbar button{font-size:11px}
 @media(max-width:1000px){.ov-cards{grid-template-columns:repeat(2,minmax(0,1fr))}.ov-chart-head{flex-wrap:wrap}}@media(max-width:620px){.ov-toolbar,.ov-welcome{align-items:flex-start;flex-direction:column}.ov-bottom{grid-template-columns:1fr}.ov-chart{padding:16px!important}.ov-card .ak-card-value{font-size:19px}.ov-card{padding:15px 12px}.ov-toolbar{margin-bottom:20px}}
+.ov-toolbar{justify-content:flex-end;margin-bottom:18px;flex-direction:row;align-items:center}
+.ov-controls{display:inline-flex;gap:0;flex-shrink:0}
+.ov-controls select{font:600 13px 'Inter',sans-serif;min-width:110px;padding:10px 12px;cursor:pointer}
+.ov-chart-stage{height:clamp(200px,32vw,300px);margin-top:16px;display:flex;align-items:center;justify-content:center}
+.ov-chart-stage svg{display:block;width:100%;height:100%;margin:0}
+.ov-unit-slot{height:46px;display:flex;align-items:flex-end}
+.ov-unit-slot .ov-unit{margin:0}
+.ov-unit-placeholder{visibility:hidden;pointer-events:none}
 </style></head>
 <body>
 
@@ -2196,7 +2204,7 @@
             <button class="dash-collapse-btn tip-right" id="sidebarToggleBtn" data-tip="${sidebarCollapsed ? 'Fold menu ud' : 'Fold menu sammen'}">${sidebarCollapsed ? '›' : '‹'}</button>
           </div>
           <nav class="dash-nav">
-            <button class="dash-nav-item tip-right ${currentView === 'overblik' ? 'active' : ''}" data-view="overblik" aria-label="Overblik"><span class="dash-nav-icon">◈</span><span class="dash-nav-label">Overblik</span></button>
+            <button class="dash-nav-item tip-right ${currentView === 'overblik' ? 'active' : ''}" data-view="overblik" aria-label="Overblik" ${sidebarCollapsed ? 'data-tip="Overblik"' : ''}><span class="dash-nav-icon" aria-hidden="true">🏠</span><span class="dash-nav-label">Overblik</span></button>
             <button class="dash-nav-item tip-right ${currentView === 'portefolje' ? 'active' : ''}" data-view="portefolje" ${sidebarCollapsed ? 'data-tip="Månedsopdatering"' : ''}>
               <span class="dash-nav-icon">📊</span><span class="dash-nav-label">Månedsopdatering</span>
             </button>
@@ -4391,8 +4399,8 @@
   }
   function renderOverviewChart(rows){
     const yearRows=rows.filter(r=>r.aar===overviewYear);
-    const tabs=`<div class="ov-chart-head"><div><h2>Din udvikling</h2><p>${overviewChart==='value'?'Porteføljeværdi inklusive indskud og udtræk':'Afkast efter korrektion for indskud og udtræk'}</p></div><div class="ov-switch" role="group" aria-label="Diagramtype"><button data-chart="value" aria-pressed="${overviewChart==='value'}">Porteføljeværdi</button><button data-chart="returns" aria-pressed="${overviewChart==='returns'}">Månedligt afkast</button></div></div>`;
-    const unit=overviewChart==='returns'?`<div class="ov-unit ov-switch" role="group" aria-label="Afkast enhed"><button data-unit="kr" aria-pressed="${overviewUnit==='kr'}">Kroner</button><button data-unit="pct" aria-pressed="${overviewUnit==='pct'}">Procent</button></div>`:'';
+    const tabs=`<div class="ov-chart-head"><div><h2>Din udvikling</h2><p>Porteføljeværdi og afkast korrigeret for indskud og udtræk</p></div><div class="ov-switch" role="group" aria-label="Diagramtype"><button data-chart="value" aria-pressed="${overviewChart==='value'}">Porteføljeværdi</button><button data-chart="returns" aria-pressed="${overviewChart==='returns'}">Månedligt afkast</button></div></div>`;
+    const unit=`<div class="ov-unit-slot"><div class="ov-unit ov-switch ${overviewChart==='value'?'ov-unit-placeholder':''}" ${overviewChart==='value'?'inert aria-hidden="true"':''} role="group" aria-label="Afkast enhed"><button data-unit="kr" aria-pressed="${overviewUnit==='kr'}">Kroner</button><button data-unit="pct" aria-pressed="${overviewUnit==='pct'}">Procent</button></div></div>`;
     let chart='';
     if(overviewChart==='value'){
       const baseline=rows.find(r=>r.aar===overviewYear-1&&r.maaned===12);
@@ -4408,11 +4416,11 @@
         }).join('')}</svg>`;
       }
     }
-    return `<section class="ak-panel ov-chart">${tabs}${unit}${chart||'<div class="ak-empty-panel">Tilføj to sammenhængende måneders porteføljeværdi for at se udviklingen.</div>'}<div class="ov-caption">${overviewChart==='returns'?'En streg betyder, at månedens afkast endnu ikke kan beregnes. Procenter er vejledende: indskuddenes dato i måneden indgår ikke.':'Værdien viser både dine investeringers udvikling og pengene, du selv har sat ind eller taget ud.'}</div></section>`;
+    return `<section class="ak-panel ov-chart">${tabs}${unit}<div class="ov-chart-stage">${chart||'<div class="ak-empty-panel">Tilføj to sammenhængende måneders porteføljeværdi for at se udviklingen.</div>'}</div><div class="ov-caption">Værdikurven inkluderer indskud og udtræk; afkastet er korrigeret for dem. En streg betyder manglende afkastdata. Procenter er vejledende, da datoerne for pengebevægelser ikke indgår.</div></section>`;
   }
   function overviewToolbar(){
     const years=Array.from(new Set(state.portefolje.map(r=>r.aar).concat(state.sales.map(r=>r.aar),state.certificates.map(c=>certificateYearFor(c)),[new Date().getFullYear()]))).sort((a,b)=>b-a);
-    return `<div class="ov-toolbar"><div class="ov-tag">DIT OVERBLIK</div><div class="ov-controls"><label for="ovYear">Vis år</label><select id="ovYear" aria-label="Vælg år">${years.map(y=>`<option ${y===overviewYear?'selected':''}>${y}</option>`).join('')}</select></div></div>`;
+    return `<div class="ov-toolbar"><div class="ov-controls"><select id="ovYear" aria-label="Vælg år">${years.map(y=>`<option ${y===overviewYear?'selected':''}>${y}</option>`).join('')}</select></div></div>`;
   }
   function renderOverview(){
     const rows=overviewRows(), m=overviewMetrics(rows,overviewYear), last=m.last;
