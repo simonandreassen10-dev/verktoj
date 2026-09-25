@@ -837,7 +837,7 @@
     onAuthStateChanged, signOut
   } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
   import {
-    getFirestore, doc, getDoc, setDoc, collection, getDocs, writeBatch
+    getFirestore, doc, getDoc, setDoc, collection, getDocs, writeBatch, runTransaction
   } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
 
   // ERSTAT MED DIN EGEN FIREBASE-KONFIGURATION (Firebase Console → Projektindstillinger → Dine apps → Web-app)
@@ -926,10 +926,67 @@
     }
   }
 
+  // Three-way merge: a stale browser must not erase a server-saved month value.
+  function mergePortfolioRecord(base, local, remote){
+    const equal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+    const conflict = () => { const error = new Error('Måneden er ændret et andet sted. Genindlæs siden før du prøver igen.'); error.name = 'PortfolioConflict'; throw error; };
+    if(!local){
+      if(remote && Object.keys({...base, ...remote}).some(k => !equal(base?.[k], remote[k]))) conflict();
+      return null;
+    }
+    if(base && !remote) conflict();
+    if(!base && !remote) return {...local};
+    const result = {...remote};
+    for(const key of Object.keys({...base, ...local})){
+      if(equal(base?.[key], local[key])) continue;
+      // A newly created draft carries no valuation; keep a server valuation.
+      if(!base && (key === 'vaerdi' || key === 'vaerdiRaw') && (local[key] == null || local[key] === '')) continue;
+      if(!equal(remote[key], base?.[key]) && !equal(remote[key], local[key])) conflict();
+      if(Object.hasOwn(local, key)) result[key] = local[key];
+      else delete result[key];
+    }
+    return result;
+  }
+
+  async function synkroniserPortfolio(records, tidligere, naeste){
+    const userId = currentUser.uid;
+    const changes = records.filter(r => tidligere.get(r.id) !== naeste.get(r.id));
+    for(const [id] of tidligere) if(!naeste.has(id)) changes.push({id, data: null});
+    for(const record of changes){
+      const base = tidligere.has(record.id) ? JSON.parse(tidligere.get(record.id)) : null;
+      const ref = doc(db, 'users', userId, 'portefolje', record.id);
+      const merged = await runTransaction(db, async transaction => {
+        const snap = await transaction.get(ref);
+        const next = mergePortfolioRecord(base, record.data, snap.exists() ? snap.data() : null);
+        if(next) transaction.set(ref, next);
+        else if(snap.exists()) transaction.delete(ref);
+        return next;
+      });
+      // Keep the UI current without replacing edits made while saving.
+      if(merged && currentUser?.uid === userId){
+        const current = state.portefolje.find(p => cloudKey('portefolje', p) === record.id);
+        if(current) for(const key of Object.keys({...record.data, ...merged})){
+          if(fingerprint(current[key]) === fingerprint(record.data[key])){
+            if(Object.hasOwn(merged, key)) current[key] = merged[key];
+            else delete current[key];
+          }
+        }
+      }
+      // Save per-record progress so a later failed record can be retried safely.
+      if(record.data) tidligere.set(record.id, fingerprint(record.data));
+      else tidligere.delete(record.id);
+    }
+  }
+
   async function synkroniserCloudCollection(type, list){
     const records = cloudRecords(type, list);
     const naeste = new Map(records.map(record => [record.id, fingerprint(record.data)]));
     const tidligere = cloudFingerprints[type] || new Map();
+    if(type === 'portefolje'){
+      await synkroniserPortfolio(records, tidligere, naeste);
+      cloudFingerprints[type] = naeste;
+      return;
+    }
     const handlinger = [];
     records.forEach(record => {
       if(tidligere.get(record.id) !== naeste.get(record.id)){
@@ -1048,7 +1105,7 @@
     saveQueue = saveQueue
       .catch(() => {})
       .then(() => gemStruktureretData(snapshot))
-      .catch(e => console.error('Kunne ikke gemme data', e));
+      .catch(e => { console.error('Kunne ikke gemme data', e); if(e.name === 'PortfolioConflict') alert(e.message); });
     return saveQueue;
   }
 
