@@ -838,6 +838,19 @@
   .cap-dialog .ak-modal-footer {position:sticky;bottom:0;background:var(--card);border-top:1px solid var(--border)}
   .cap-dialog #capitalAddTrade {margin-top:12px}
   @media(max-width:650px){.cap-trade{grid-template-columns:1fr 1fr}.cap-dialog .cert-editor-grid{grid-template-columns:1fr}.cap-actions{width:100%}.cap-dialog .ak-modal-footer{position:static}}
+  /* Shared modal structure and trade-card rhythm for capital-income funds. */
+  .cap-dialog {border-radius:14px;max-height:96dvh;overflow:hidden;font-family:'Inter',sans-serif}
+  .cap-dialog form {display:flex;flex-direction:column;max-height:calc(96dvh - 2px);min-height:0}
+  .cap-modal-body {flex:1;min-height:0;grid-template-columns:minmax(0,1fr) 260px}
+  .cap-dialog .ak-modal-footer {position:static;flex-shrink:0}
+  .cap-dialog input,.cap-dialog select {font-size:13.5px;padding:6px 10px;background:var(--bg)}
+  .cap-dialog .ak-field label {font-weight:600;font-size:12px}
+  .cap-dialog .cap-trade {display:block;padding:12px 12px 5px;margin:8px 0;background:var(--bg)}
+  .cap-trade .ak-field-row:first-of-type {padding-right:26px}
+  .cap-preview-note {line-height:1.6;margin-top:16px;font-size:11px}
+  .cap-modal-body>.ak-modal-preview {padding:16px}
+  @media(max-width:720px){.cap-modal-body{grid-template-columns:1fr}.cap-dialog .ak-modal-form{border-right:0}.cap-dialog .cert-editor-grid{grid-template-columns:1fr 1fr}}
+  @media(max-width:420px){.cap-dialog .cert-editor-grid{grid-template-columns:1fr}.cap-trade .ak-field-row{flex-wrap:wrap}.cap-trade .ak-field{flex:1 1 110px}}
 </style></head>
 <body>
 
@@ -1120,7 +1133,7 @@
     saveQueue = saveQueue
       .catch(() => {})
       .then(() => gemStruktureretData(snapshot))
-      .catch(e => { console.error('Kunne ikke gemme data', e); if(e.name === 'PortfolioConflict') alert(e.message); });
+      .catch(e => { console.error('Kunne ikke gemme data', e); if(e.name === 'PortfolioConflict') alert(e.message); return false; });
     return saveQueue;
   }
 
@@ -2536,11 +2549,45 @@
   let capitalYear = new Date().getFullYear();
   let capitalSort = 'navn';
   let capitalUndo = null;
+  function capitalIdentity(f){
+    return saleIdentityHtml({navn:f.name,maegler:f.broker||'Ikke angivet',valuta:'DKK',aar:f.year},true,true).replace('</span></div></div>','<span class="ak-ask-badge">KAPITALINDKOMST</span></span></div></div>');
+  }
+  function capitalChips(items){
+    return `<span class="ak-fin-chips">${items.map(([label,value,sign])=>`<span class="ak-fin-chip"><span class="lbl">${label}</span><span class="val ${sign===undefined?'':sign>=0?'pos':'neg'}">${value}</span></span>`).join('')}</span>`;
+  }
+  async function storeCapitalFunds(next){
+    const previous=state.capitalFunds;state.capitalFunds=next;
+    if(await save()===false){state.capitalFunds=previous;return false;}
+    return true;
+  }
+  async function deleteCapitalFund(id){
+    const f=capitalFunds().find(x=>x.id===id);if(!f)return;
+    if(!confirm('Slet denne årsopgørelse og dens handler? Du kan fortryde på Kapitalindkomst-fanen.'))return;
+    if(!await storeCapitalFunds(capitalFunds().filter(x=>x.id!==id))){alert('Kunne ikke gemme sletningen. Prøv igen.');return;}
+    capitalUndo=f;currentView='aktiesalg';aktiesalgTab='kapital';render();
+  }
+  function openCapitalDetails(id){
+    const f=capitalFunds().find(x=>x.id===id);if(!f)return;
+    const c=capitalCalc(f),val=n=>n===null?'Afventer':fmtKr(n);
+    const row=(label,value)=>`<div class="ak-details-info-row"><span class="ak-details-info-label">${label}</span><span class="ak-details-info-value">${value}</span></div>`;
+    const overlay=document.getElementById('saleDetailsOverlay'),content=document.getElementById('saleDetailsContent');
+    content.innerHTML=`<div class="ak-modal-header"><div class="ak-modal-title" id="saleDetailsTitle">Overblik over fonden · ${f.year}</div><button class="ak-modal-close" id="saleDetailsClose" aria-label="Luk">×</button></div><div class="ak-sale-details-body"><div class="ak-details-hero">${capitalIdentity(f)}<div class="ak-details-return"><div class="ak-details-return-value ${c.result===null?'':c.result>=0?'pos':'neg'}">${val(c.result)}</div><div class="ak-details-return-label">Årets resultat før skat</div></div></div><div class="ak-details-story"><span aria-hidden="true">ⓘ</span><span>Kapitalindkomst opgøres samlet for året efter lagerprincippet. ${c.units===0?'Alle registrerede andele er solgt.':'Resterende andele skal værdiansættes ved årsskiftet.'} ${c.tax===null?'Skatteestimat afventer sats eller slutværdi.':'Skatten er vejledende og baseret på din valgte sats.'}</span></div><div class="ak-details-summary">${[['Køb inkl. omkostninger',fmtKr(c.purchases)],['Nettosalg',fmtKr(c.proceeds)],['Vejledende skat',val(c.tax)],['Efter skat (est.)',val(c.tax===null?null:c.result-c.tax)]].map(([l,v])=>`<div class="ak-details-stat"><div class="ak-details-stat-label">${l}</div><div class="ak-details-stat-value">${v}</div></div>`).join('')}</div><div class="ak-details-trade-grid">${[...f.trades].sort((a,b)=>a.date.localeCompare(b.date)).map(t=>`<section class="ak-details-trade-card ${t.side==='buy'?'purchase':'sale'}"><div class="ak-details-trade-head"><div class="ak-details-trade-title"><span class="ak-details-trade-icon">${t.side==='buy'?'K':'S'}</span>${t.side==='buy'?'Køb':'Salg'}</div><span class="ak-details-trade-date">${formatDatoDa(t.date)}</span></div>${row('Antal',t.units.toLocaleString('da-DK'))}${row('Kurs',fmtKr(t.price))}${row('Handelsomkostninger',fmtKr(t.fees))}${row(t.side==='buy'?'Køb inkl. omkostninger':'Nettosalg',fmtKr(capitalMoney(t.units*t.price+(t.side==='buy'?t.fees:-t.fees))))}</section>`).join('')}</div><div class="ak-details-groups"><section class="ak-details-group"><div class="ak-details-group-title">Skatterapport · beregningsgrundlag</div>${row('Startværdi 1/1',fmtKr(f.openingValue))}${row('Køb inkl. omkostninger (fratrækkes)',fmtKr(c.purchases))}${row('Nettosalg (tillægges)',fmtKr(c.proceeds))}${row('Bruttoudlodninger (tillægges)',fmtKr(f.distributions))}${row('Slutværdi 31/12 (tillægges)',val(c.closing))}${row('Årets resultat',val(c.result))}${row('Valgt skattesats',f.rate===null?'Ikke valgt':f.rate.toLocaleString('da-DK')+'%')}</section></div><p class="ak-subtitle">Omkostninger er handelsudgifter, ikke ekstra skat. Tab er med i årsresultatet; skatteværdien af tab og anden kapitalindkomst beregnes ikke her.</p></div><div class="ak-sale-details-footer"><button class="ak-cancel-btn" id="saleDetailsCloseFooter">Luk</button><button class="ak-submit-btn" id="capDetailsEdit" style="flex:0 0 auto">Rediger / tilføj handler</button></div>`;
+    overlay.classList.add('open');overlay.setAttribute('aria-hidden','false');lockBackgroundScroll();wireBackdropClose(overlay,closeSaleDetails);
+    document.getElementById('saleDetailsClose').onclick=closeSaleDetails;document.getElementById('saleDetailsCloseFooter').onclick=closeSaleDetails;
+    document.getElementById('capDetailsEdit').onclick=()=>{closeSaleDetails();openCapitalModal(id);};
+    document.getElementById('saleDetailsClose').focus();
+  }
+  function capitalPreview(f){
+    const c=capitalCalc(f),val=n=>n===null?'Afventer':fmtKr(n);
+    const row=(label,value)=>`<div class="ak-preview-row"><span class="k">${label}</span><span class="v">${value}</span></div>`;
+    if(!c.valid)return '<div class="ak-preview-empty">Udfyld handlerne for at se årsopgørelsen.<br>Datoer skal være i det valgte år, og salg må ikke overstige beholdningen.</div>';
+    return `<div class="ak-preview-hero"><div class="ak-preview-label">Årets resultat før skat</div><div class="ak-preview-amount ${c.result===null?'':c.result>=0?'pos':'neg'}">${val(c.result)}</div><div class="ak-preview-pct">Kapitalindkomst · ${f.year}</div></div>${row('Startværdi',fmtKr(f.openingValue))}${row('Køb inkl. omk.',fmtKr(c.purchases))}${row('Nettosalg',fmtKr(c.proceeds))}${row('Udlodninger',Number.isFinite(f.distributions)?fmtKr(f.distributions):'Udfyld')}${row('Slutværdi',val(c.closing))}${row('Andele tilbage',c.units.toLocaleString('da-DK'))}${row('Vejledende skat',val(c.tax))}${row('Efter skat (est.)',val(c.tax===null?null:c.result-c.tax))}<p class="ak-subtitle cap-preview-note">${c.tax===null?'Vælg en sats for at få et skatteestimat. Mangler slutværdien, afventer beregningen denne.':'Baseret på din valgte sats på '+f.rate+'%. Øvrig kapitalindkomst og skatteværdien af tab er ikke medregnet.'}</p>`;
+  }
   function capitalFunds(){ return state.capitalFunds || []; }
   function capitalMoney(n){ return Math.round((n + Number.EPSILON) * 100) / 100; }
   function capitalCalc(f){
     let units = Number(f.openingUnits), purchases = 0, proceeds = 0, fees = 0;
-    let valid = Number.isFinite(units) && units >= 0 && Number.isFinite(f.openingValue) && f.openingValue >= 0;
+    let valid = Number.isFinite(units) && units >= 0 && Number.isFinite(f.openingValue) && f.openingValue >= 0 && Number.isFinite(f.distributions) && f.distributions >= 0;
     if(units === 0 && f.openingValue !== 0) valid = false;
     for(const t of [...f.trades].sort((a,b)=>a.date.localeCompare(b.date))){
       const parsedDate = new Date(t.date+'T00:00:00Z');
@@ -2565,17 +2612,22 @@
     return {funds, complete:values.every(v=>v.complete), taxComplete:values.every(v=>v.tax!==null), result:capitalMoney(values.reduce((s,v)=>s+(v.result||0),0)), tax:capitalMoney(values.reduce((s,v)=>s+(v.tax||0),0))};
   }
   function capitalCard(f){
-    const c=capitalCalc(f), val=n=>n===null?'Afventer':fmtKr(n);
-    return `<div class="ak-entry ${c.result===null?'':c.result>=0?'gain':'loss'}"><div class="ak-entry-top"><div><strong>${escapeHtml(f.name)}</strong><div class="ak-subtitle">Kapitalindkomst · lagerbeskattet · ${f.year} · ${escapeHtml(f.broker || 'Ikke angivet')}</div></div><button class="ak-editlink" data-cap-open="${escapeHtml(f.id)}">Årsopgørelse / rediger ›</button></div><div class="ak-ask-inline-stats"><div class="ak-ask-inline-stat"><div class="ak-ask-inline-label">Årets resultat</div><strong>${val(c.result)}</strong></div><div class="ak-ask-inline-stat"><div class="ak-ask-inline-label">Vejledende reserve</div><strong>${val(c.tax)}</strong></div><div class="ak-ask-inline-stat"><div class="ak-ask-inline-label">Efter reserve</div><strong>${val(c.tax===null?null:capitalMoney(c.result-c.tax))}</strong></div></div><p class="ak-subtitle">${f.trades.length} handler · ${c.units.toLocaleString('da-DK')} andele tilbage${!c.complete?' · Mangler årsslutværdi':''}</p></div>`;
+    const c=capitalCalc(f),val=n=>n===null?'Afventer':fmtKr(n),after=c.tax===null?null:capitalMoney(c.result-c.tax);
+    return `<div class="ak-entry ${c.result===null?'':c.result>=0?'gain':'loss'}" data-cap-details="${escapeHtml(f.id)}" role="button" tabindex="0" aria-label="Vis detaljer om ${escapeHtml(f.name)}"><div class="ak-entry-row-top">${capitalIdentity(f)}<div class="ak-entry-top-right"><span class="ak-entry-meta">Lagerbeskattet</span><button class="ak-edit-btn" data-cap-open="${escapeHtml(f.id)}" aria-label="Rediger ${escapeHtml(f.name)}">${iconEdit()}</button><button class="ak-del-btn" data-cap-delete="${escapeHtml(f.id)}" aria-label="Slet årsopgørelse for ${escapeHtml(f.name)}">${iconTrash()}</button><span class="ak-entry-chevron" aria-hidden="true">›</span></div></div><div class="ak-entry-row-bottom"><span class="ak-entry-meta">${f.trades.length} handler · Køb ${fmtKr(c.purchases)} · Nettosalg ${fmtKr(c.proceeds)} · ${c.units.toLocaleString('da-DK')} andele tilbage</span>${capitalChips([['Årets resultat',val(c.result),c.result??undefined],['Vejledende skat',val(c.tax)],['Efter skat (est.)',val(after),after??undefined]])}</div></div>`;
   }
   function renderCapitalContent(){
     const s=capitalSummary(capitalYear);
     const years=Array.from(new Set([capitalYear,new Date().getFullYear(),...capitalFunds().map(f=>f.year)])).sort((a,b)=>b-a);
     const funds=[...s.funds].sort((a,b)=>capitalSort==='resultat'?(capitalCalc(b).result??-Infinity)-(capitalCalc(a).result??-Infinity):a.name.localeCompare(b.name,'da'));
-    return `<div class="ak-root"><div class="ak-view-header"><div class="ak-title">Aktiesalg &amp; skat</div><div class="ak-subtitle">Kapitalindkomst fra lagerbeskattede fonde i almindeligt depot.</div></div>${renderAktiesalgTabs()}<div class="ak-panel ak-year-toolbar"><div><div class="ak-year-toolbar-title">Vælg skatteår</div><div class="ak-year-toolbar-sub">Køb, salg og beholdning opgøres samlet pr. fond og år.</div></div><select id="capitalYear" class="ak-year-select" aria-label="Vælg kapitalindkomstår">${years.map(y=>`<option ${y===capitalYear?'selected':''}>${y}</option>`).join('')}</select></div><section class="ak-panel"><div class="ak-tax-overview-head"><div><div class="ak-tax-overview-title">Skatteoverblik · kapitalindkomst</div><div class="ak-tax-overview-sub">Holdes adskilt fra aktieindkomst, ASK og certifikater.</div></div><span class="ak-tax-overview-rate">Lagerprincip</span></div><div class="ak-summary">${[['Årets resultat',s.complete?fmtKr(s.result):'Afventer'],['Vejledende reserve',s.taxComplete?fmtKr(s.tax):'Vælg sats / værdi'],['Efter reserve',s.taxComplete?fmtKr(s.result-s.tax):'Afventer'],['Handler i året',s.funds.reduce((n,f)=>n+f.trades.length,0)]].map(([l,v])=>`<div class="ak-card"><div class="ak-card-label">${l}</div><div class="ak-card-value">${v}</div></div>`).join('')}</div><div class="cert-disclaimer">Årsresultat = slutværdi + nettosalg + udlodninger − køb inkl. omkostninger − startværdi. En manglende slutværdi tæller aldrig som 0. Skattesatsen vælges frivilligt pr. årsopgørelse; reserven tager ikke højde for din øvrige kapitalindkomst eller skatteværdien af tab.</div><details style="margin-top:14px"><summary class="ak-tax-overview-title">Skatterapport ${capitalYear}</summary><p class="ak-subtitle">Åbn den enkelte fond nedenfor for beregning og alle handler. Fairrente er kapitalindkomst og lagerbeskattet fra 2026. Kontrollér altid fondstype og årsopgørelsen; funktionen er ikke til aktiebaserede ETF'er, ASK eller pension.</p><p class="ak-subtitle"><a href="https://fairrente.dk/privat/" target="_blank" rel="noopener">Fairrentes skatteoplysninger</a> · <a href="https://skat.dk/borger/aktier-og-andre-vaerdipapirer/skat-af-investeringsbeviser-udstedt-af-investeringsforeninger-og-investeringsselskaber" target="_blank" rel="noopener">Skattestyrelsen</a></p></details></section><section class="ak-panel"><div class="ak-list-header"><div><div class="ak-list-title">Fonde · ${capitalYear}</div><div class="ak-subtitle">Én årsopgørelse pr. fond og depot.</div></div><div class="cap-actions"><select id="capitalSort" aria-label="Sortér fonde"><option value="navn" ${capitalSort==='navn'?'selected':''}>Navn</option><option value="resultat" ${capitalSort==='resultat'?'selected':''}>Størst årsafkast</option></select><button id="capitalAdd" class="ak-add-btn">+ Tilføj fond / handler</button></div></div>${funds.length?funds.map(capitalCard).join(''):'<div class="ak-empty-panel">Ingen fonde registreret i dette år.</div>'}</section>${capitalUndo?'<button class="ak-undo-btn" id="capitalUndo">Årsopgørelse slettet · Fortryd</button>':''}</div>`;
+    return `<div class="ak-root"><div class="ak-view-header"><div class="ak-title">Aktiesalg &amp; skat</div><div class="ak-subtitle">Kapitalindkomst fra lagerbeskattede fonde i almindeligt depot.</div></div>${renderAktiesalgTabs()}<div class="ak-panel ak-year-toolbar"><div><div class="ak-year-toolbar-title">Vælg skatteår</div><div class="ak-year-toolbar-sub">Køb, salg og beholdning opgøres samlet pr. fond og år.</div></div><select id="capitalYear" class="ak-year-select" aria-label="Vælg kapitalindkomstår">${years.map(y=>`<option ${y===capitalYear?'selected':''}>${y}</option>`).join('')}</select></div><section class="ak-panel"><div class="ak-tax-overview-head"><div><div class="ak-tax-overview-title">Skatteoverblik · kapitalindkomst</div><div class="ak-tax-overview-sub">Holdes adskilt fra aktieindkomst, ASK og certifikater.</div></div><span class="ak-tax-overview-rate">Lagerprincip</span></div><div class="ak-summary">${[['Årets resultat',s.complete?fmtKr(s.result):'Afventer'],['Vejledende skat',s.taxComplete?fmtKr(s.tax):'Vælg sats / værdi'],['Efter skat (est.)',s.taxComplete?fmtKr(s.result-s.tax):'Afventer'],['Handler i året',s.funds.reduce((n,f)=>n+f.trades.length,0)]].map(([l,v])=>`<div class="ak-card"><div class="ak-card-label">${l}</div><div class="ak-card-value">${v}</div></div>`).join('')}</div><div class="cert-disclaimer">Årsresultat = slutværdi + nettosalg + udlodninger − køb inkl. omkostninger − startværdi. En manglende slutværdi tæller aldrig som 0. Skattesatsen vælges frivilligt pr. årsopgørelse; reserven tager ikke højde for din øvrige kapitalindkomst eller skatteværdien af tab.</div><details style="margin-top:14px"><summary class="ak-tax-overview-title">Skatterapport ${capitalYear}</summary>${s.funds.map(f=>{const c=capitalCalc(f);return `<div class="ak-preview-row"><span class="k">${escapeHtml(f.name)}</span><span class="v">${c.result===null?'Afventer slutværdi':fmtKr(c.result)}</span></div>`;}).join('')}<p class="ak-subtitle">Åbn den enkelte fond nedenfor for beregning og alle handler. Fairrente er kapitalindkomst og lagerbeskattet fra 2026. Kontrollér altid fondstype og årsopgørelsen; funktionen er ikke til aktiebaserede ETF'er, ASK eller pension.</p><p class="ak-subtitle"><a href="https://fairrente.dk/privat/" target="_blank" rel="noopener">Fairrentes skatteoplysninger</a> · <a href="https://skat.dk/borger/aktier-og-andre-vaerdipapirer/skat-af-investeringsbeviser-udstedt-af-investeringsforeninger-og-investeringsselskaber" target="_blank" rel="noopener">Skattestyrelsen</a></p></details></section><section class="ak-panel"><div class="ak-list-header"><div><div class="ak-list-title">Fonde · ${capitalYear}</div><div class="ak-subtitle">Én årsopgørelse pr. fond og depot.</div></div><div class="cap-actions"><select id="capitalSort" aria-label="Sortér fonde"><option value="navn" ${capitalSort==='navn'?'selected':''}>Navn</option><option value="resultat" ${capitalSort==='resultat'?'selected':''}>Størst årsafkast</option></select><button id="capitalAdd" class="ak-add-btn">+ Tilføj handler</button></div></div>${funds.length?funds.map(capitalCard).join(''):'<div class="ak-empty-panel">Ingen fonde registreret i dette år.</div>'}</section>${capitalUndo?'<button class="ak-undo-btn" id="capitalUndo">Årsopgørelse slettet · Fortryd</button>':''}</div>`;
   }
   function wireCapitalCards(){
-    document.querySelectorAll('[data-cap-open]').forEach(b=>b.onclick=()=>openCapitalModal(b.dataset.capOpen));
+    document.querySelectorAll('[data-cap-open]').forEach(b=>b.onclick=e=>{e.stopPropagation();openCapitalModal(b.dataset.capOpen);});
+    document.querySelectorAll('[data-cap-delete]').forEach(b=>b.onclick=e=>{e.stopPropagation();deleteCapitalFund(b.dataset.capDelete);});
+    document.querySelectorAll('[data-cap-details]').forEach(b=>{
+      b.onclick=e=>{if(!e.target.closest('button'))openCapitalDetails(b.dataset.capDetails);};
+      b.onkeydown=e=>{if(e.target===b&&(e.key==='Enter'||e.key===' ')){e.preventDefault();openCapitalDetails(b.dataset.capDetails);}};
+    });
   }
   function wireCapitalView(){
     document.querySelectorAll('[data-sales-tab]').forEach(b=>b.onclick=()=>{aktiesalgTab=b.dataset.salesTab;render();});
@@ -2583,56 +2635,55 @@
     document.getElementById('capitalSort').onchange=e=>{capitalSort=e.target.value;render();};
     document.getElementById('capitalAdd').onclick=()=>openCapitalModal();
     const undo=document.getElementById('capitalUndo');
-    if(undo) undo.onclick=()=>{state.capitalFunds.push(capitalUndo);capitalUndo=null;save();render();};
+    if(undo) undo.onclick=async()=>{if(!await storeCapitalFunds(capitalFunds().concat(capitalUndo))){alert('Kunne ikke gendanne opgørelsen. Prøv igen.');return;}capitalUndo=null;render();};
     wireCapitalCards();
   }
   function capitalTradeFields(t={}){
-    const field=(key,label,value,type='text')=>`<label>${label}<input data-key="${key}" type="${type}" value="${escapeHtml(value??'')}" ${type==='text'?'inputmode="decimal"':''} required></label>`;
-    return `<div class="cap-trade"><label>Handel<select data-key="side"><option value="buy" ${t.side!=='sell'?'selected':''}>Køb</option><option value="sell" ${t.side==='sell'?'selected':''}>Salg</option></select></label>${field('date','Dato',t.date,'date')}${field('units','Antal',t.units)}${field('price','Kurs (DKK)',t.price)}${field('fees','Omkostninger',t.fees??0)}<button type="button" class="ak-cancel-btn" data-remove-trade aria-label="Fjern handel fra kladde">×</button></div>`;
+    const uid='captrade-'+crypto.randomUUID();
+    const field=(key,label,value,type='text')=>`<div class="ak-field"><label for="${uid}-${key}">${label}</label><input id="${uid}-${key}" data-key="${key}" type="${type}" value="${escapeHtml(value??'')}" ${type==='text'?'inputmode="decimal"':''} required></div>`;
+    return `<div class="cap-trade ak-lot"><button type="button" class="ak-lot-remove" data-remove-trade aria-label="Fjern handel fra kladde">×</button><div class="ak-field-row"><div class="ak-field"><label for="${uid}-side">Handel</label><select id="${uid}-side" data-key="side"><option value="buy" ${t.side!=='sell'?'selected':''}>Køb</option><option value="sell" ${t.side==='sell'?'selected':''}>Salg</option></select></div>${field('date','Dato',t.date,'date')}</div><div class="ak-field-row">${field('units','Antal',t.units)}${field('price','Kurs (DKK)',t.price)}${field('fees','Omkostninger (DKK)',t.fees??0)}</div></div>`;
   }
   function openCapitalModal(id){
     const existing=capitalFunds().find(f=>f.id===id);
+    const draftId=existing?.id || 'capital_'+crypto.randomUUID();
     const f=existing||{name:'',broker:'',year:capitalYear,openingUnits:0,openingValue:0,closingValue:null,distributions:0,rate:null,trades:[]};
     document.getElementById('capitalDialog')?.remove();
     const d=document.createElement('dialog');d.id='capitalDialog';d.className='cap-dialog';
     const field=(key,label,value,type='text')=>`<div class="ak-field"><label for="cap-${key}">${label}</label><input id="cap-${key}" type="${type}" value="${escapeHtml(value??'')}" ${['name','broker'].includes(key)?'':'inputmode="decimal"'}></div>`;
-    d.innerHTML=`<form id="capitalForm"><div class="ak-modal-header"><div class="ak-modal-title">${existing?'Årsopgørelse / rediger fond':'Tilføj fond og handler'}</div><button type="button" class="ak-modal-close" data-cap-close aria-label="Luk">×</button></div><div class="cap-body"><div class="cert-editor-grid">${field('name','Fondens navn',f.name)}${field('broker','Depot / mægler',f.broker)}${field('year','Skatteår',f.year,'number')}${field('rate','Vejledende skattesats (%) — valgfri',f.rate)}</div><p class="ak-subtitle">Kun lagerbeskattet kapitalindkomst i almindeligt depot. Ingen fast aktieskat. Blank sats betyder, at der ikke vises en skattereserve.</p><details ${f.openingUnits?'open':''}><summary>Beholdning fra sidste år</summary><p class="ak-subtitle">Ingen beholdning ved årets start? Behold 0. Ellers bruges antal og markedsværdi 31/12 året før — ikke oprindelig købspris. Kontrollér mod sidste års opgørelse.</p><div class="cert-editor-grid">${field('openingUnits','Antal ved årets start',f.openingUnits)}${field('openingValue','Værdi ved årets start (DKK)',f.openingValue)}</div></details><h3>Årets handler</h3><p class="ak-subtitle">Indtast kurs og omkostninger separat. Køb: kurs × antal + omkostninger. Salg: kurs × antal − omkostninger. Indtast ikke nettobeløbet som kurs.</p><div id="capitalTrades">${f.trades.map(capitalTradeFields).join('')}</div><button type="button" id="capitalAddTrade" class="ak-cancel-btn">+ Tilføj køb / salg</button><div class="cert-editor-grid" style="margin-top:16px">${field('closingValue','Værdi af resterende andele 31/12 (DKK)',f.closingValue)}${field('distributions','Årets bruttoudlodninger (DKK)',f.distributions)}</div><p class="ak-subtitle">Er alt solgt, sættes slutværdien automatisk til 0. Ellers kan feltet stå tomt indtil årsskiftet; resultat og reserve vises da som afventende.</p><div id="capitalPreview" class="cert-disclaimer" aria-live="polite"></div><div id="capitalError" class="ak-auth-error" role="alert"></div></div><div class="ak-modal-footer cap-actions">${existing?'<button type="button" class="ak-cancel-btn" id="capitalDelete">Slet årsopgørelse</button>':''}<button type="button" class="ak-cancel-btn" data-cap-close>Annuller</button><button class="ak-submit-btn" type="submit">Gem årsopgørelse</button></div></form>`;
+    d.innerHTML=`<form id="capitalForm"><div class="ak-modal-header"><div class="ak-modal-title">${existing?'Rediger fond og handler':'Tilføj handler · kapitalindkomst'}</div><button type="button" class="ak-modal-close" data-cap-close aria-label="Luk">×</button></div><div class="ak-modal-body cap-modal-body"><div class="ak-modal-form"><div class="cert-editor-grid">${field('name','Fondens navn',f.name)}${field('broker','Depot / mægler',f.broker)}${field('year','Skatteår',f.year,'number')}${field('rate','Vejledende skattesats (%) — valgfri',f.rate)}</div><p class="ak-subtitle">Kun lagerbeskattet kapitalindkomst i almindeligt depot. Ingen fast aktieskat. Blank sats betyder, at der ikke vises en skattereserve.</p><details ${f.openingUnits?'open':''}><summary>Beholdning fra sidste år</summary><p class="ak-subtitle">Ingen beholdning ved årets start? Behold 0. Ellers bruges antal og markedsværdi 31/12 året før — ikke oprindelig købspris. Kontrollér mod sidste års opgørelse.</p><div class="cert-editor-grid">${field('openingUnits','Antal ved årets start',f.openingUnits)}${field('openingValue','Værdi ved årets start (DKK)',f.openingValue)}</div></details><div class="ak-section-label">Årets køb og salg</div><p class="ak-subtitle">Indtast kurs og omkostninger separat. Køb: kurs × antal + omkostninger. Salg: kurs × antal − omkostninger. Indtast ikke nettobeløbet som kurs.</p><div id="capitalTrades">${f.trades.map(capitalTradeFields).join('')}</div><button type="button" id="capitalAddTrade" class="ak-ghostbtn">+ Tilføj køb / salg</button><div class="cert-editor-grid" style="margin-top:16px">${field('closingValue','Værdi af resterende andele 31/12 (DKK)',f.closingValue)}${field('distributions','Årets bruttoudlodninger (DKK)',f.distributions)}</div><p class="ak-subtitle">Er alt solgt, sættes slutværdien automatisk til 0. Ellers kan feltet stå tomt indtil årsskiftet; resultat og reserve vises da som afventende.</p><div id="capitalError" class="ak-auth-error" role="alert"></div></div><aside id="capitalPreview" class="ak-modal-preview" aria-live="polite"></aside></div><div class="ak-modal-footer cap-actions">${existing?'<button type="button" class="ak-cancel-btn" id="capitalDelete">Slet årsopgørelse</button>':''}<button type="button" class="ak-cancel-btn" data-cap-close>Annuller</button><button class="ak-submit-btn" type="submit">Gem handler</button></div></form>`;
     document.body.appendChild(d);
     const close=()=>{d.close();d.remove();};
     d.querySelectorAll('[data-cap-close]').forEach(b=>b.onclick=close);
     const num=(key,optional=false)=>{const v=d.querySelector('#cap-'+key).value.trim();return v===''?(optional?null:NaN):(beregnUdtryk(v)??NaN);};
-    const read=()=>({id:existing?.id || 'capital_'+crypto.randomUUID(),name:d.querySelector('#cap-name').value.trim(),broker:d.querySelector('#cap-broker').value.trim(),year:num('year'),openingUnits:num('openingUnits'),openingValue:num('openingValue'),closingValue:num('closingValue',true),distributions:num('distributions'),rate:num('rate',true),trades:[...d.querySelectorAll('.cap-trade')].map(row=>Object.fromEntries([...row.querySelectorAll('[data-key]')].map(el=>[el.dataset.key,['side','date'].includes(el.dataset.key)?el.value:(el.value.trim()===''?NaN:beregnUdtryk(el.value))])))});
+    const read=()=>({id:draftId,name:d.querySelector('#cap-name').value.trim(),broker:d.querySelector('#cap-broker').value.trim(),year:num('year'),openingUnits:num('openingUnits'),openingValue:num('openingValue'),closingValue:num('closingValue',true),distributions:num('distributions'),rate:num('rate',true),trades:[...d.querySelectorAll('.cap-trade')].map(row=>Object.fromEntries([...row.querySelectorAll('[data-key]')].map(el=>[el.dataset.key,['side','date'].includes(el.dataset.key)?el.value:(el.value.trim()===''?NaN:beregnUdtryk(el.value))])))});
     const update=()=>{
       const draft=read(),c=capitalCalc(draft);
-      d.querySelector('#capitalPreview').textContent=!c.valid?'Kontrollér datoer, beløb og antal. Salg må ikke overstige beholdningen; alle datoer skal være i det valgte år.':`Køb inkl. omkostninger: ${fmtKr(c.purchases)} · Nettosalg: ${fmtKr(c.proceeds)} · Tilbage: ${c.units.toLocaleString('da-DK')} andele. Årsresultat: ${c.result===null?'Afventer slutværdi':fmtKr(c.result)}. Reserve: ${c.tax===null?'Ikke beregnet':fmtKr(c.tax)}.`;
+      d.querySelector('#capitalPreview').innerHTML=capitalPreview(draft);
     };
     d.addEventListener('input',update);d.addEventListener('change',update);
     d.querySelector('#capitalAddTrade').onclick=()=>{d.querySelector('#capitalTrades').insertAdjacentHTML('beforeend',capitalTradeFields({date:`${num('year')}-01-01`}));update();};
     d.addEventListener('click',e=>{if(e.target.closest('[data-remove-trade]')){e.target.closest('.cap-trade').remove();update();}});
-    d.querySelector('#capitalForm').onsubmit=e=>{
+    d.querySelector('#capitalForm').onsubmit=async e=>{
       e.preventDefault();const draft=read(),c=capitalCalc(draft),fail=msg=>{d.querySelector('#capitalError').textContent=msg;};
       if(!draft.name || !Number.isInteger(draft.year) || draft.year<2000 || draft.year>2100) return fail('Udfyld navn og et gyldigt skatteår.');
       if(/fairrente/i.test(draft.name) && draft.year<2026) return fail('Fairrentes lagerbeskatning gælder fra 2026. Tidligere år kræver en anden skattemodel.');
       if(!c.valid || !Number.isFinite(draft.distributions) || draft.distributions<0 || (draft.closingValue!==null && (!Number.isFinite(draft.closingValue)||draft.closingValue<0)) || (draft.rate!==null && (!Number.isFinite(draft.rate)||draft.rate<0||draft.rate>100))) return fail('Kontrollér datoer, beholdning og beløb. Brug positive beløb og en sats mellem 0 og 100.');
       if(capitalFunds().some(x=>x.id!==draft.id && x.year===draft.year && x.name.toLowerCase()===draft.name.toLowerCase() && (x.broker||'').toLowerCase()===draft.broker.toLowerCase())) return fail('Fonden findes allerede i dette år og depot. Rediger den eksisterende årsopgørelse.');
       if(c.units===0) draft.closingValue=0;
-      state.capitalFunds=capitalFunds().filter(x=>x.id!==draft.id).concat(draft);capitalYear=draft.year;save();close();render();
+      const button=d.querySelector('button[type="submit"]');button.disabled=true;button.textContent='Gemmer …';
+      if(!await storeCapitalFunds(capitalFunds().filter(x=>x.id!==draft.id).concat(draft))){button.disabled=false;button.textContent='Gem handler';return fail('Kunne ikke gemme på din konto. Prøv igen — formularen er bevaret.');}
+      capitalYear=draft.year;close();render();
     };
-    const del=d.querySelector('#capitalDelete');if(del)del.onclick=()=>{if(!confirm('Slet denne årsopgørelse og dens handler? Du kan fortryde på Kapitalindkomst-fanen.'))return;capitalUndo=existing;state.capitalFunds=capitalFunds().filter(x=>x.id!==existing.id);save();close();currentView='aktiesalg';aktiesalgTab='kapital';render();};
-    d.addEventListener('close',()=>d.remove());d.showModal();update();d.querySelector('#cap-name').focus();
+    const del=d.querySelector('#capitalDelete');if(del)del.onclick=async()=>{await deleteCapitalFund(existing.id);if(!capitalFunds().some(x=>x.id===existing.id))close();};
+    d.addEventListener('close',()=>{d.remove();unlockBackgroundScroll();});d.showModal();lockBackgroundScroll();update();d.querySelector('#cap-name').focus();
   }
   function capitalSearchRows(){
     return capitalFunds().flatMap(f=>f.trades.map((t,i)=>({id:f.id+'_'+i,fundId:f.id,isCapital:true,navn:f.name,type:'Kapitalfond',aar:f.year,salgDato:t.date,maegler:f.broker||'Ikke angivet',gevinst:0,trade:t})));
   }
   function capitalSearchEntry(s){
     const t=s.trade,net=capitalMoney(t.units*t.price+(t.side==='buy'?t.fees:-t.fees));
-    return `<div class="ak-entry"><div class="ak-entry-top"><div><strong>${escapeHtml(s.navn)}</strong><div class="ak-subtitle">Kapitalindkomst · ${t.side==='buy'?'Køb':'Salg'} · ${escapeHtml(t.date)} · ${escapeHtml(s.maegler)}</div></div><button class="ak-editlink" data-cap-open="${escapeHtml(s.fundId)}">Se årsopgørelse ›</button></div><div class="ak-ask-inline-stats">${[['Antal',t.units.toLocaleString('da-DK')],['Omkostninger',fmtKr(t.fees)],[t.side==='buy'?'Køb inkl. omkostninger':'Nettosalg',fmtKr(net)]].map(([l,v])=>`<div class="ak-ask-inline-stat"><div class="ak-ask-inline-label">${l}</div><strong>${v}</strong></div>`).join('')}</div><p class="ak-subtitle">Skat og afkast opgøres årligt efter lagerprincippet — ikke pr. salg.</p></div>`;
+    return `<div class="ak-entry" data-cap-details="${escapeHtml(s.fundId)}" role="button" tabindex="0" aria-label="Vis detaljer om ${escapeHtml(s.navn)}"><div class="ak-entry-row-top">${capitalIdentity({name:s.navn,broker:s.maegler,year:s.aar})}<div class="ak-entry-top-right"><span class="ak-ask-badge">${t.side==='buy'?'KØB':'SALG'}</span><button class="ak-edit-btn" data-cap-open="${escapeHtml(s.fundId)}" aria-label="Rediger fondsopgørelse">${iconEdit()}</button><span class="ak-entry-chevron" aria-hidden="true">›</span></div></div><div class="ak-entry-row-bottom"><span class="ak-entry-meta">Lagerbeskattet fond · ${formatDatoDa(t.date)} · ${t.units.toLocaleString('da-DK')} stk.</span>${capitalChips([['Kurs',fmtKr(t.price)],['Omkostninger',fmtKr(t.fees)],[t.side==='buy'?'Køb inkl. omk.':'Nettosalg',fmtKr(net)]])}<span class="ak-entry-meta">Afkast og skat beregnes i fondens samlede årsopgørelse ›</span></div></div>`;
   }
-
-  // ============ CERTIFIKATER VIEW ============
-  // Certifikater er ikke en del af aktiesalgs- eller ASK-beregningen. Mange typer
-  // beskattes anderledes (ofte som finansielle kontrakter), derfor er tallet her en
-  // brugerstyret reserve og aldrig en erstatning for årsopgørelsen.
   function certificateResult(c){
     return (parseFloat(c.endValue) || 0) - (parseFloat(c.startValue) || 0) - (parseFloat(c.costs) || 0);
   }
