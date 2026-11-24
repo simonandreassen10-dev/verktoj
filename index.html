@@ -848,9 +848,14 @@
   .cap-dialog .cap-trade {display:block;padding:12px 12px 5px;margin:8px 0;background:var(--bg)}
   .cap-trade .ak-field-row:first-of-type {padding-right:26px}
   .cap-preview-note {line-height:1.6;margin-top:16px;font-size:11px}
-  .cap-modal-body>.ak-modal-preview {padding:16px}
-  @media(max-width:720px){.cap-modal-body{grid-template-columns:1fr}.cap-dialog .ak-modal-form{border-right:0}.cap-dialog .cert-editor-grid{grid-template-columns:1fr 1fr}}
+  .cap-modal-body>.ak-modal-preview {padding:16px;position:sticky;top:0;align-self:start}
+  @media(max-width:720px){.cap-modal-body{grid-template-columns:1fr}.cap-modal-body>.ak-modal-preview{position:static}.cap-dialog .ak-modal-form{border-right:0}.cap-dialog .cert-editor-grid{grid-template-columns:1fr 1fr}}
   @media(max-width:420px){.cap-dialog .cert-editor-grid{grid-template-columns:1fr}.cap-trade .ak-field-row{flex-wrap:wrap}.cap-trade .ak-field{flex:1 1 110px}}
+  .ak-sale-details-modal:has(#capDetailsEdit) {max-height:94dvh;overflow:hidden}
+  .ak-sale-details-modal:has(#capDetailsEdit) #saleDetailsContent {min-height:0;flex:1;overflow:hidden}
+  .ak-sale-details-modal:has(#capDetailsEdit) .ak-sale-details-body {overflow-y:auto}
+  .ak-sale-details-modal:has(#capDetailsEdit) .ak-details-summary {grid-template-columns:repeat(4,minmax(0,1fr))}
+  @media(max-width:650px){.ak-sale-details-modal:has(#capDetailsEdit) .ak-details-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
 </style></head>
 <body>
 
